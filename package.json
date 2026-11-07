@@ -3,7 +3,7 @@
   "version": "0.2.7",
   "description": "Synchronized linear TV, EPG, live preemption and instance-settings scheduling panel",
   "license": "GPL-3.0-only",
-  "author": "OmniaTV contributors",
+  "author": "Linear TV contributors",
   "keywords": [
     "peertube",
     "plugin",
