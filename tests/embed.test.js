@@ -91,7 +91,7 @@ test('plugin packaging serves reusable client module and embed stylesheet', () =
   assert.equal(pkg.staticDirs['tv-assets'], 'client')
   assert.match(embedClient, /import\s*\{\s*mountLinearTV\s*\}\s*from\s*'\.\/common-client-plugin\.js'/)
   assert.match(client, /export\s*\{[^}]*mountLinearTV/)
-  assert.match(client, /onMount:\s*\(\{ rootEl \}\)\s*=>\s*mountLinearTV/)
+  assert.match(client, /onMount:\s*\(\{ rootEl \}\)\s*=>\s*\{[\s\S]*?mountLinearTV\(rootEl/)
   assert.match(embedClient, /event\.source\s*===\s*window\.parent/)
   assert.match(embedClient, /window\.parent\.postMessage\(\{ type: 'linear-tv:resize'/)
   assert.match(embedClient, /rootEl\.getBoundingClientRect\(\)\.bottom/)
