@@ -121,3 +121,95 @@ test('standalone embed supports both OS color schemes without affecting PeerTube
   assert.match(css, /body\.lt-embed-document\s*\{\s*background: #fff; color: #202124/)
   assert.doesNotMatch(css, /#linear-tv-app\s*\{\s*background: #fff/)
 })
+
+test('mounted TV updates chat theme on the existing 5-second tick without iframe reload', async () => {
+  const { mountLinearTV } = await loadClient()
+  const saved = { window: globalThis.window, document: globalThis.document,
+    fetch: globalThis.fetch, setInterval: globalThis.setInterval }
+  let tick
+  let theme = { '--fg': '#f3f5f7', '--bg': '#101820', '--is-dark': '1' }
+  let chatFrameCount = 0
+  let chatReplacements = 0
+  const chatStyles = new Map()
+  const chatBodyNode = {
+    children: [],
+    replaceChildren (...nodes) { chatReplacements++; this.children = nodes }
+  }
+  const nodes = new Map([['#lt-chat-body', chatBodyNode]])
+  const makeNode = () => ({
+    isConnected: true, style: {}, textContent: '', hidden: false,
+    classList: { toggle () {} }, addEventListener () {}, setAttribute () {},
+    getBoundingClientRect () { return { height: 270, top: 120 } },
+    replaceChildren () {}
+  })
+  const root = {
+    isConnected: true, innerHTML: '',
+    querySelector (selector) {
+      if (!nodes.has(selector)) nodes.set(selector, makeNode())
+      return nodes.get(selector)
+    }
+  }
+  const doc = {
+    body: {}, documentElement: { lang: 'en' },
+    createElement (tag) {
+      if (tag !== 'iframe') return makeNode()
+      chatFrameCount++
+      const frame = makeNode()
+      frame.listeners = {}
+      frame.addEventListener = (name, callback) => { frame.listeners[name] = callback }
+      frame.contentWindow = {
+        location: { origin: 'https://video.example.org' },
+        document: { body: {
+          classList: { contains: name => name === 'converse-fullscreen' },
+          style: { setProperty (key, value) { chatStyles.set(key, value) } }
+        } }
+      }
+      return frame
+    }
+  }
+  const win = {
+    location: { origin: 'https://video.example.org' }, innerHeight: 900,
+    parent: null, addEventListener () {}, matchMedia: () => ({ matches: false }),
+    CSS: { supports: () => true },
+    getComputedStyle () {
+      return {
+        color: theme['--fg'], backgroundColor: theme['--bg'],
+        getPropertyValue: name => theme[name] || ''
+      }
+    }
+  }
+  win.parent = win
+  try {
+    globalThis.window = win
+    globalThis.document = doc
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({
+      mode: 'empty', title: 'TV', healthy: true, current: null,
+      chatAnchor: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', upcoming: []
+    }) })
+    globalThis.setInterval = fn => { tick = fn; return 77 }
+    mountLinearTV(root, {
+      routerBase: '/plugins/linear-tv/router', staticBase: '/plugins/linear-tv/static'
+    })
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(chatFrameCount, 1)
+    const iframe = chatBodyNode.children[0]
+    const initialURL = iframe.src
+    assert.match(initialURL, /_ac_mainBackground=%23101820/)
+    iframe.listeners.load()
+    assert.equal(chatStyles.get('--peertube-main-background'), '#101820')
+    theme = { '--fg': '#222222', '--bg': '#ffffff', '--is-dark': '0' }
+    tick()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(chatStyles.get('--peertube-main-background'), '#ffffff')
+    assert.equal(chatStyles.get('--peertube-main-foreground'), '#222222')
+    assert.strictEqual(chatBodyNode.children[0], iframe)
+    assert.equal(iframe.src, initialURL)
+    assert.equal(chatFrameCount, 1)
+    assert.equal(chatReplacements, 1)
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete globalThis[key]
+      else globalThis[key] = value
+    }
+  }
+})
