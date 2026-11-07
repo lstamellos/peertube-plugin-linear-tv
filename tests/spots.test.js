@@ -57,9 +57,10 @@ test('after live, play only the next spot and resume the interrupted VOD offset'
   const s = ready()
   T.applyLive(s, [live()], 20000)
   assert.equal(s.paused.offset, 20)
-  assert.deepEqual(T.status(s, 50000).upcomingAfterLive.map(x => x.uuid).slice(0, 3),
-    [id(5), id(1), id(2)])
-  assert.equal(T.status(s, 50000).upcomingAfterLive[1].resumeOffsetSeconds, 20)
+  assert.deepEqual(T.status(s, 50000).upcomingAfterLive.map(x => x.uuid).slice(0, 2),
+    [id(1), id(2)])
+  assert.equal(T.status(s, 50000).upcomingAfterLive[0].resumeOffsetSeconds, 20)
+  assert.ok(T.status(s, 50000).upcomingAfterLive.every(x => !x.interstitial))
   T.applyLive(s, [], 100000)
   assert.equal(T.status(s, 100000).current.uuid, id(5))
   assert.equal(T.status(s, 100000).elapsedSeconds, 0)
@@ -146,7 +147,8 @@ test('consecutive live interruptions rotate only one spot each time', () => {
   assert.equal(T.status(s, 45000).elapsedSeconds, 18)
   T.applyLive(s, [live()], 47000)
   assert.equal(s.paused.offset, 20)
-  assert.equal(T.status(s, 50000).upcomingAfterLive[0].uuid, id(6))
+  assert.equal(T.status(s, 50000).upcomingAfterLive[0].uuid, id(1))
+  assert.ok(T.status(s, 50000).upcomingAfterLive.every(x => !x.interstitial))
   T.applyLive(s, [], 80000)
   assert.equal(T.status(s, 80000).current.uuid, id(6))
   assert.equal(T.status(s, 87000).current.uuid, id(1))
