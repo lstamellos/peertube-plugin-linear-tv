@@ -8,7 +8,15 @@ const source = readFileSync(join(__dirname, '..', 'client', 'common-client-plugi
 const loadClient = () => import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'))
 
 test('Embed access requires an authenticated PeerTube administrator, never moderator or visitor', async () => {
-  const { isEmbedAdministrator } = await loadClient()
+  const { isAdminUser, isEmbedAdministrator } = await loadClient()
+  assert.equal(isAdminUser({ role: { id: 0, label: 'Administrator' } }), true)
+  assert.equal(isAdminUser({ role: { id: 1, label: 'Moderator' } }), false)
+  assert.equal(isAdminUser({ role: { id: 2, label: 'User' } }), false)
+  assert.equal(isAdminUser({ role: { label: 'Administrator' } }), false)
+  assert.equal(isAdminUser(null), false)
+  assert.equal(isEmbedAdministrator({ isLoggedIn: () => true, getUser: () => ({ role: { id: 0, label: 'Administrator' } }) }), true)
+  assert.equal(isEmbedAdministrator({ isLoggedIn: () => true, getUser: () => ({ role: { id: 1, label: 'Moderator' } }) }), false)
+  assert.equal(isEmbedAdministrator({ isLoggedIn: () => true, getUser: () => ({ role: { id: 2, label: 'User' } }) }), false)
   assert.equal(isEmbedAdministrator({ isLoggedIn: () => true, getUser: () => ({ role: 0 }) }), true)
   assert.equal(isEmbedAdministrator({ isLoggedIn: () => true, getUser: () => ({ role: 1 }) }), false)
   assert.equal(isEmbedAdministrator({ isLoggedIn: () => true, getUser: () => ({ role: 2 }) }), false)
@@ -40,7 +48,7 @@ test('native TV route reacts to login role changes and logout', async () => {
     fetch: globalThis.fetch, setInterval: globalThis.setInterval }
   const hooks = new Map()
   let route
-  let role = 0
+  let role = { id: 0, label: 'Administrator' }
   let loggedIn = true
   const button = { hidden: false, attrs: {}, setAttribute (key, value) { this.attrs[key] = value } }
   const panel = { hidden: true }
@@ -82,13 +90,13 @@ test('native TV route reacts to login role changes and logout', async () => {
     assert.equal(button.attrs['aria-expanded'], 'false')
 
     loggedIn = true
-    role = 1
-    hooks.get('action:auth-user.information-loaded')({ user: { role: 1 } })
+    role = { id: 1, label: 'Moderator' }
+    hooks.get('action:auth-user.information-loaded')({ user: { role: { id: 1, label: 'Moderator' } } })
     assert.equal(button.hidden, true)
-    hooks.get('action:auth-user.information-loaded')({ user: { role: 2 } })
+    hooks.get('action:auth-user.information-loaded')({ user: { role: { id: 2, label: 'User' } } })
     assert.equal(button.hidden, true)
-    role = 0
-    hooks.get('action:auth-user.information-loaded')({ user: { role: 0 } })
+    role = { id: 0, label: 'Administrator' }
+    hooks.get('action:auth-user.information-loaded')({ user: { role: { id: 0, label: 'Administrator' } } })
     assert.equal(button.hidden, false)
   } finally {
     for (const [key, value] of Object.entries(old)) {
