@@ -1,6 +1,6 @@
 {
   "name": "peertube-plugin-linear-tv",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Synchronized linear TV, EPG, live preemption and instance-settings scheduling panel",
   "license": "GPL-3.0-only",
   "author": "Linear TV contributors",
