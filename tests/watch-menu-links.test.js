@@ -194,6 +194,12 @@ test('live hides the programme EPG; post-live restores fresh times and video lin
     assert.equal(listEl.children[0].children[1].children[0].textContent, 'First up')
     assert.equal(listEl.children[0].children[1].children[1].href, '/w/' + uuid1)
     assert.strictEqual(elements.get('#lt-chat-body').children[0], chatFrame)
+    // The synthetic VOD status schedules a future boundary poll. Switch back
+    // to live so the client clears that timer before this node:test exits.
+    responseMode = 'live'
+    globalThis.__ltTick()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(programmePanel.hidden, true)
   } finally {
     if (originalDocument === undefined) delete globalThis.document
     else globalThis.document = originalDocument
