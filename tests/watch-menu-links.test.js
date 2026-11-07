@@ -125,7 +125,7 @@ test('live hides the programme EPG; post-live restores fresh times and video lin
       createElement: element,
       head: { appendChild () {} }
     }
-    globalThis.window = { location: { origin: 'https://video.omniatv.com' }, PeerTubePlayer: class { constructor () { this.ready = Promise.resolve() } getCurrentTime () { return Promise.resolve(0) } isPlaying () { return Promise.resolve(true) } } }
+    globalThis.window = { location: { origin: 'https://peertube.example' }, PeerTubePlayer: class { constructor () { this.ready = Promise.resolve() } getCurrentTime () { return Promise.resolve(0) } isPlaying () { return Promise.resolve(true) } } }
     globalThis.fetch = async () => ({ ok: true, json: async () => payload() })
     globalThis.setInterval = fn => { globalThis.__ltTick = fn; return 91 }
     globalThis.performance = { now: () => 0 }
