@@ -26,7 +26,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
               (unlisted) PeerTube βίντεο. Δεν αποτελούν μέρος των κανονικών playlists.</p>
             <ol id="lt-admin-spots" class="lt-admin-queue"></ol>
             <label for="lt-admin-spot-input">UUID ή σύνδεσμος PeerTube σποτ</label>
-            <input id="lt-admin-spot-input" placeholder="https://video.omniatv.com/w/UUID">
+            <input id="lt-admin-spot-input" placeholder="https://your-peertube.example/w/UUID">
             <button type="button" id="lt-admin-spot-add">Προσθήκη σποτ</button>
             <p id="lt-admin-spots-message" role="status"></p>
             <button type="button" id="lt-admin-spots-save" disabled>Αποθήκευση σποτ</button></section>
