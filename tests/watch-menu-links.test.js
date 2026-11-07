@@ -81,7 +81,7 @@ test('video action opens the correct PeerTube watch URL in a new tab with a desc
   }
 })
 
-test('both normal EPG and upcoming-after-live rows get the video action without changing the TV player', async () => {
+test('live hides the programme EPG; post-live restores fresh times and video links without replacing the chat', async () => {
   const client = await loadClient()
   const originalDocument = globalThis.document
   const originalWindow = globalThis.window
@@ -92,6 +92,7 @@ test('both normal EPG and upcoming-after-live rows get the video action without 
   const uuid1 = '11111111-1111-4111-8111-111111111111'
   const uuid2 = '22222222-2222-4222-8222-222222222222'
   let responseMode = 'vod'
+  let postLiveShift = 0
   const payload = () => ({
     mode: responseMode,
     serverTime: Date.now(),
@@ -100,7 +101,7 @@ test('both normal EPG and upcoming-after-live rows get the video action without 
     elapsedSeconds: 0,
     endsAt: Date.now() + 300_000,
     chatAnchor: '44444444-4444-4444-8444-444444444444',
-    upcoming: [{ uuid: uuid1, name: 'First up', startsAt: Date.now() + 60_000, duration: 120 }],
+    upcoming: [{ uuid: uuid1, name: 'First up', startsAt: Date.now() + 60_000 + postLiveShift, duration: 120 }],
     upcomingAfterLive: [{ uuid: uuid2, name: 'After live', duration: 180 }]
   })
   function element (tag) {
@@ -142,6 +143,9 @@ test('both normal EPG and upcoming-after-live rows get the video action without 
     route.onMount({ rootEl })
     await new Promise(resolve => setImmediate(resolve))
     assert.equal(listEl.children.length, 1)
+    const programmePanel = elements.get('.lt-epg')
+    assert.equal(programmePanel.hidden, false)
+    const firstTime = listEl.children[0].children[0].textContent
     assert.equal(listEl.children[0].children.length, 2, 'time and a single title/action cell')
     const firstEntry = listEl.children[0].children[1]
     assert.equal(firstEntry.className, 'lt-epg-entry')
@@ -173,13 +177,23 @@ test('both normal EPG and upcoming-after-live rows get the video action without 
     responseMode = 'live'
     globalThis.__ltTick()
     await new Promise(resolve => setImmediate(resolve))
-    assert.equal(listEl.children.length, 1)
-    assert.equal(listEl.children[0].children.length, 2)
-    assert.equal(listEl.children[0].children[1].children[0].textContent, 'After live')
-    assert.equal(listEl.children[0].children[1].children[1].href, '/w/' + uuid2)
-    assert.equal(listEl.children[0].children[1].children[1].textContent, 'Άνοιγμα ↗')
-    assert.equal(listEl.children[0].children[0].textContent, 'Μετά το live')
+    assert.equal(programmePanel.hidden, true, 'hide heading, message and queue during live')
+    assert.equal(listEl.children.length, 0, 'discard stale programme times during live')
+    assert.equal(elements.get('#lt-schedule-message').textContent, '')
     assert.equal(elements.get('#lt-video').children[0].tagName, 'IFRAME')
+    assert.strictEqual(elements.get('#lt-chat-body').children[0], chatFrame)
+
+    responseMode = 'vod'
+    postLiveShift = 3600_000
+    globalThis.__ltTick()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(programmePanel.hidden, false, 'restore entire EPG after live')
+    assert.equal(listEl.children.length, 1)
+    assert.notEqual(listEl.children[0].children[0].textContent, firstTime,
+      'rebuild from new server schedule times')
+    assert.equal(listEl.children[0].children[1].children[0].textContent, 'First up')
+    assert.equal(listEl.children[0].children[1].children[1].href, '/w/' + uuid1)
+    assert.strictEqual(elements.get('#lt-chat-body').children[0], chatFrame)
   } finally {
     if (originalDocument === undefined) delete globalThis.document
     else globalThis.document = originalDocument
