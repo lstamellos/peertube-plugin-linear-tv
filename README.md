@@ -1,8 +1,17 @@
-# PeerTube Linear TV v0.2.6 — Embeddable TV page
+# PeerTube Linear TV v0.2.7 — Interstitial spots
 
 Creates a **shared 24/7 television-style channel** from a PeerTube account or chosen video channels. Visitors joining `/p/tv` watch the *same* programme item at its calculated time offset. The PeerTube sidebar includes **Watch** (**Δείτε** in Greek) under Quick access, and upcoming EPG entries provide an external-link button opening their individual `/w/<uuid>` watch page in a new tab without changing the shared stream. A running livestream immediately preempts VOD playback. When live ends, the programme starts a fresh VOD **from 00:00**: the next scheduled video after the interrupted one, or any new public videos published during the live (newest first). The electronic programme guide (EPG) is then recalculated.
 
 Designed for PeerTube **8.2.x and 8.3.x**, especially native installations using Node.js >=22. **Version 0.2.6 includes a standalone iframe embed; the PeerTube 8.3.2 route and the WordPress iframe were smoke-tested on a test copy of the OmniaTV homepage.**
+
+## Changes in v0.2.7 — Interstitial spots
+
+- Set **zero to 20 public or unlisted VODs** in the programme administrator panel under **Ενδιάμεσα σποτ**. Paste each video's full UUID or a PeerTube URL containing the UUID, arrange with up/down/drag-and-drop, remove and save. The server resolves each UUID directly and rejects private, restricted, live, unpublished or duplicate content.
+- Spots play **in the configured order after each programme video**, before the next one (including playlist transitions and automatic loop boundaries). After a live broadcast ends, the entire sequence of spots plays **before** the next eligible full VOD. Live always preempts a spot immediately, just as it preempts an ordinary VOD.
+- The shared programme clock includes exact spot durations: all viewers and the WordPress iframe remain on the same segment and offset. The EPG displays programme VOD start times after the intervening spot break. While a spot is on air, the player indicates **Σποτ**.
+- Saved playlists remain separate from spot configuration. Spot changes preserve the current VOD position; changes while a spot is already on air are rejected until it ends, to prevent the broadcast from jumping to another video. If the configured spot list is empty, previous TV behaviour is unchanged.
+- Unlisted videos require a full UUID (short PeerTube URLs without UUID are not sufficient). They are **not** discovered in public search. Anyone watching the public TV channel can see and share the unlisted spot's UUID; do not use unlisted for confidential media.
+- Access: PeerTube administration → General settings → **Προγραμματισμός TV** → **Ενδιάμεσα σποτ**. Existing v0.2.6 saved state is migrated without resetting playlists or requiring a database schema migration.
 
 ## Changes in v0.2.6 — Embeddable TV page
 
