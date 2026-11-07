@@ -226,9 +226,15 @@ function isIntentionalSeekInput (event) {
 
 // PeerTube client helpers expose the active user's role: 0 administrator,
 // 1 moderator, 2 regular user. Fail closed if the login state is unavailable.
+function isAdminUser (user) {
+  // The PeerTube MyUser API exposes role as { id: 0, label: 'Administrator' }.
+  // Support the numeric representation used by older server-side models too.
+  return user?.role?.id === 0 || user?.role === 0
+}
+
 function isEmbedAdministrator (helpers) {
   try {
-    return helpers?.isLoggedIn?.() === true && helpers?.getUser?.()?.role === 0
+    return helpers?.isLoggedIn?.() === true && isAdminUser(helpers?.getUser?.())
   } catch { return false }
 }
 
@@ -257,7 +263,7 @@ function register ({ registerClientRoute, registerHook, peertubeHelpers }) {
     })
     registerHook({
       target: 'action:auth-user.information-loaded',
-      handler: ({ user } = {}) => refreshEmbedAccess(user?.role === 0)
+      handler: ({ user } = {}) => refreshEmbedAccess(isAdminUser(user))
     })
     registerHook({
       target: 'filter:left-menu.links.create.result',
@@ -655,4 +661,4 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false, show
     void update()
   }, 5000)
 }
-export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, isProgrammeSynced, isIntentionalSeekInput, isEmbedAdministrator, setEmbedAccess, uiText, generateEmbedCode, generateHomepageTag }
+export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, isProgrammeSynced, isIntentionalSeekInput, isAdminUser, isEmbedAdministrator, setEmbedAccess, uiText, generateEmbedCode, generateHomepageTag }
