@@ -23,7 +23,7 @@ test('Settings integration uses valid PeerTube 8.3 General route and preserves t
 test('Settings tab is injected only in Configuration menu; click uses PeerTube router', async () => {
   const oldWindow = global.window
   const oldDocument = global.document
-  const url = new URL('https://video.omniatv.com/admin/settings/config/information')
+  const url = new URL('https://peertube.example/admin/settings/config/information')
   const nav = {
     links: [], querySelector (q) {
       if (q.startsWith('.')) return this.links[0] || null
@@ -119,7 +119,7 @@ test('Configuration TV tab mounts the scheduler without touching native route an
   const root = { querySelector (s) { return s.includes('lateral-menu') ? nav : content } }
   const globalKey = '__ltMounted'
   try {
-    global.window = { location: new URL('https://video.omniatv.com' + mod.TV_SETTINGS_URL) }
+    global.window = { location: new URL('https://peertube.example' + mod.TV_SETTINGS_URL) }
     global.document = { querySelector () { return root }, createElement (tag) { return new Element(tag) } }
     let hook
     mod.register({ registerClientRoute () {}, registerHook (opts) { hook = opts.handler },
@@ -132,7 +132,7 @@ test('Configuration TV tab mounts the scheduler without touching native route an
     hook()
     await new Promise(resolve => setTimeout(resolve, 10))
     assert.equal(global[globalKey], 1, 'same mounted panel while staying on tab')
-    global.window.location = new URL('https://video.omniatv.com/admin/settings/config/live')
+    global.window.location = new URL('https://peertube.example/admin/settings/config/live')
     hook()
     await new Promise(resolve => setTimeout(resolve, 10))
     assert.equal(general.style.display, '')
