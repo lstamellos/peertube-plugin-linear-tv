@@ -42,9 +42,15 @@
 }
 
 #linear-tv-app .lt-player-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .6rem; }
-#linear-tv-app .lt-sound, #linear-tv-app .lt-chat-toggle { padding: .45rem .85rem; cursor: pointer; border: 1px solid currentColor; border-radius: 4px; background: transparent; color: inherit; }
+#linear-tv-app .lt-sound, #linear-tv-app .lt-chat-toggle, #linear-tv-app .lt-embed-toggle, #linear-tv-app .lt-embed-controls button { padding: .45rem .85rem; cursor: pointer; border: 1px solid currentColor; border-radius: 4px; background: transparent; color: inherit; }
 #linear-tv-app .lt-sound[hidden] { display: none; }
-#linear-tv-app .lt-chat-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+#linear-tv-app .lt-player-actions button:focus-visible, #linear-tv-app .lt-embed-controls button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+#linear-tv-app .lt-embed-panel { margin: .75rem 0; padding: .8rem; border: 1px solid var(--input-border-color, #7775); border-radius: 6px; min-width: 0; }
+#linear-tv-app .lt-embed-panel[hidden] { display: none !important; }
+#linear-tv-app .lt-embed-panel label { display: block; margin-bottom: .4rem; font-weight: 600; }
+#linear-tv-app .lt-embed-panel textarea { display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 10rem; padding: .55rem; font: .8rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical; background: var(--input-bg, transparent); color: inherit; border: 1px solid var(--input-border-color, #7777); }
+#linear-tv-app .lt-embed-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: .6rem; }
+#linear-tv-app .lt-embed-panel p { font-size: .88rem; opacity: .8; margin: .75rem 0 0; }
 
 /* Scheduling panel */
 .lt-admin { max-width: 1280px; margin: 1rem auto; padding: 0 1rem 3rem; color: var(--fg, inherit); }
