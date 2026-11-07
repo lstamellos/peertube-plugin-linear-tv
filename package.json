@@ -1,0 +1,59 @@
+{
+  "name": "peertube-plugin-linear-tv",
+  "version": "0.2.5",
+  "description": "Synchronized linear TV, EPG, live preemption and instance-settings scheduling panel",
+  "license": "GPL-3.0-only",
+  "author": "OmniaTV contributors",
+  "keywords": [
+    "peertube",
+    "plugin",
+    "linear-tv",
+    "epg",
+    "live"
+  ],
+  "engine": {
+    "peertube": ">=8.2.0"
+  },
+  "library": "./main.js",
+  "clientScripts": [
+    {
+      "script": "client/common-client-plugin.js",
+      "scopes": [
+        "common"
+      ]
+    },
+    {
+      "script": "client/programme-client-plugin.js",
+      "scopes": [
+        "common"
+      ]
+    }
+  ],
+  "css": [
+    "client/linear-tv.css"
+  ],
+  "staticDirs": {
+    "embed-api": "node_modules/@peertube/embed-api/build"
+  },
+  "dependencies": {
+    "@peertube/embed-api": "^0.2.0"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node --check main.js && node --check lib/schedule.js && node --check client/common-client-plugin.js && node --check lib/programming.js && node --check client/programme-client-plugin.js && node --check tests/settings-tab.test.js && node --check tests/watch-menu-links.test.js && node --check tests/chat-layout.test.js"
+  },
+  "files": [
+    "main.js",
+    "lib",
+    "client",
+    "README.md",
+    "LICENSE",
+    "tests",
+    "languages"
+  ],
+  "homepage": "",
+  "bugs": "",
+  "translations": {
+    "el": "./languages/el.json"
+  }
+}

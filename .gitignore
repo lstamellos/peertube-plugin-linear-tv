@@ -1,0 +1,25 @@
+# Dependency installs and generated files
+node_modules/
+dist/
+coverage/
+*.log
+npm-debug.log*
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local/editor/OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Packages and backups
+*.tgz
+*.zip
+*.bak
