@@ -2,7 +2,7 @@
 
 A shared, television-style player for a PeerTube instance. Linear TV schedules publicly available videos from an account or selected channels, switches to active livestreams, and shows the next programmes in an electronic programme guide (EPG). It also offers a configurable administrator programme panel, optional interstitial spots, persistent live chat and an embeddable player.
 
-**Version:** 0.2.8 · **PeerTube:** 8.2+ · **Node.js:** 22+ · **License:** GPL-3.0-only
+**Version:** 0.2.9 · **PeerTube:** 8.2+ · **Node.js:** 22+ · **License:** GPL-3.0-only
 
 ## Features
 
@@ -14,7 +14,7 @@ A shared, television-style player for a PeerTube instance. Linear TV schedules p
 - **Optional persistent chat:** integrate a single room from `peertube-plugin-livechat` by setting an anchor video UUID.
 - **Native homepage markup:** paste `<peertube-container data-linear-tv="true"></peertube-container>` into PeerTube's custom homepage editor. The plugin renders the existing responsive TV embed in place, with no extra JavaScript or external-origin configuration.
 - **One-click embed code:** a localized **Embed / Ενσωμάτωση** button beside the sound and chat controls shows copyable, instance-specific HTML with automatic height adjustment. The generated URL uses the stable, upgrade-safe plugin route.
-- **Three viewer surfaces:** the native PeerTube `/p/tv` page, and a standalone iframe on `/plugins/linear-tv/router/embed`. Both use the same server-side schedule, also shared by the homepage markup.
+- **Three viewer surfaces:** the PeerTube `/p/tv` page, the standalone iframe at `/plugins/linear-tv/router/embed`, and custom homepage markup. All share the same server-side schedule.
 - **Persistent state:** scheduled playlists, spots and play positions survive plugin/service restarts (within the supported single-process installation).
 
 ## Install or upgrade
