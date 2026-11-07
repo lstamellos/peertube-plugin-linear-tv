@@ -422,13 +422,14 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     const expected = expectedOffset()
     try {
       const actual = await instance.getCurrentTime()
-      if (instance !== player) return
+      // A user may have touched the timeline while getCurrentTime() was pending.
+      if (instance !== player || !autoSyncEnabled) return
       if (Number.isFinite(actual) && Math.abs(actual - expected) > 3.5) {
         await instance.seek(expected)
       }
       // Respect browser autoplay policies: if it cannot play, the viewer can press Play.
-      if (instance === player && !(await instance.isPlaying())) {
-        await instance.play().catch(() => {})
+      if (instance === player && autoSyncEnabled && !(await instance.isPlaying())) {
+        if (autoSyncEnabled) await instance.play().catch(() => {})
       }
     } catch { /* player not ready or navigation underway */ }
   }
