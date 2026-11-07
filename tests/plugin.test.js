@@ -40,6 +40,7 @@ test('PeerTube plugin hooks, EPG, live preemption, public VOD priority after res
   }
   const hooks = {}
   const routes = {}
+  let changeSettings
   const stored = {}
   const settings = {
     'source-account': 'unused-account', 'source-channels': 'channel-a, channel-b',
@@ -56,7 +57,8 @@ test('PeerTube plugin hooks, EPG, live preemption, public VOD priority after res
     await plugin.register({
       registerSetting () {}, registerHook: ({ target, handler }) => { hooks[target] = handler },
       getRouter: () => router,
-      settingsManager: { getSettings: async () => settings, onSettingsChange () {} },
+      settingsManager: { getSettings: async () => settings,
+        onSettingsChange (handler) { changeSettings = handler } },
       storageManager: { getData: async key => stored[key], storeData: async (key, value) => { stored[key] = JSON.parse(JSON.stringify(value)) } },
       peertubeHelpers: { logger: { warn () {} }, config: { getServerListeningConfig: () => ({ hostname: '0.0.0.0', port: 9000 }) } }
     })
@@ -65,6 +67,33 @@ test('PeerTube plugin hooks, EPG, live preemption, public VOD priority after res
     assert.equal(result.title, 'Example TV')
     assert.equal(result.chatAnchor, ids[0])
     assert.equal(result.upcoming[0].uuid, ids[1])
+    // External framing belongs to the installation, not to a hard-coded host.
+    const programmeBeforeEmbedSetting = stored['linear-tv-state-v1'].revision
+    settings['embed-allowed-origins'] = 'https://www.example.org'
+    await changeSettings()
+    assert.equal(reply().current.uuid, ids[0])
+    assert.equal(stored['linear-tv-state-v1'].revision, programmeBeforeEmbedSetting,
+      'changing the embed allowlist must not restart the current programme')
+    const embedHeaders = {}
+    const embedResponse = {
+      getHeader (key) { return embedHeaders[key] },
+      setHeader (key, value) { embedHeaders[key] = value },
+      removeHeader (key) { delete embedHeaders[key] },
+      status (code) { this.code = code; return this },
+      send (body) { this.body = body; return this }
+    }
+    routes['/embed']({ baseUrl: '/plugins/linear-tv/router' }, embedResponse)
+    assert.equal(embedResponse.code, 200)
+    assert.equal(embedHeaders['Content-Security-Policy'],
+      "frame-ancestors 'self' https://www.example.org")
+    assert.match(embedResponse.body, /data-allowed-origins="\\[&quot;https:\/\/www\.example\.org&quot;\\]"/)
+    settings['embed-allowed-origins'] = 'https://www.example.org/path'
+    await changeSettings()
+    routes['/embed']({ baseUrl: '/plugins/linear-tv/router' }, embedResponse)
+    assert.equal(embedHeaders['Content-Security-Policy'],
+      "frame-ancestors 'self' https://www.example.org",
+      'invalid allowlist changes must not replace the working configuration')
+    settings['embed-allowed-origins'] = 'https://www.example.org'
     assert.ok(calls.every(x => x.hostname === '127.0.0.1'))
     assert.ok(calls.every(x => x.searchParams.get('includeScheduledLive') === 'true'))
     assert.ok(calls.every(x => !x.searchParams.has('privacyOneOf')), 'anonymous API cannot use privacyOneOf')
