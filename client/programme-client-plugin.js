@@ -1,50 +1,53 @@
 'use strict'
 
 // Shared renderer for the supported plugin route and the instance Settings tab.
+// Match the PeerTube document language. Tests without a document language retain
+// the original Greek captions; non-Greek installations receive English UI.
+function uiText (el, en) {
+  const language = typeof document === 'undefined' ? 'el' : (document.documentElement?.lang || 'el')
+  return /^el(?:[-_]|$)/i.test(language) ? el : en
+}
+
 function mountProgramme (rootEl, peertubeHelpers) {
       rootEl.innerHTML = `
-        <section class="lt-admin" aria-label="Διαχείριση τηλεοπτικού προγράμματος">
-          <header class="lt-admin-header"><div><h1>Προγραμματισμός TV</h1>
-            <p>Η αλλαγή της ουράς δεν επηρεάζει το βίντεο που ήδη παίζει.</p></div>
-            <a href="/p/tv" target="_blank" rel="noopener">Προβολή Watch</a></header>
+        <section class="lt-admin" aria-label="${uiText("Διαχείριση τηλεοπτικού προγράμματος", "TV programme management")}">
+          <header class="lt-admin-header"><div><h1>${uiText("Προγραμματισμός TV", "TV programme")}</h1>
+            <p>${uiText("Η αλλαγή της ουράς δεν επηρεάζει το βίντεο που ήδη παίζει.", "Editing the queue does not interrupt the on-air video.")}</p></div>
+            <a href="/p/tv" target="_blank" rel="noopener">${uiText("Προβολή Watch", "Open Watch")}</a></header>
           <p class="lt-admin-notice" id="lt-admin-message" role="status" aria-live="polite"></p>
-          <section class="lt-admin-card"><h2>Τώρα παίζει</h2><div id="lt-admin-current"></div>
+          <section class="lt-admin-card"><h2>${uiText("Τώρα παίζει", "Now playing")}</h2><div id="lt-admin-current"></div>
             <div id="lt-admin-active"></div></section>
-          <section class="lt-admin-card"><h2>Τρέχουσα playlist — πλήρης επεξεργασία</h2>
-            <p>Μετακίνησε, αφαίρεσε ή πρόσθεσε βίντεο. Όσα έχουν ήδη παίξει, ή βρίσκονται πριν από το τρέχον,
-              αλλάζουν μόνο στον <strong>επόμενο κύκλο</strong>. Οι αλλαγές στα επόμενα ισχύουν αμέσως,
-              χωρίς διακοπή ή μετακίνηση της αναπαραγωγής. Το βίντεο που παίζει παραμένει μέχρι να τελειώσει.</p>
+          <section class="lt-admin-card"><h2>${uiText("Τρέχουσα playlist — πλήρης επεξεργασία", "Current playlist — full editor")}</h2>
+            <p>${uiText("Move, remove or add videos. Previously played videos or videos before the current one only change in the next cycle. Changes after the current video apply immediately without interrupting playback. The on-air video stays until it finishes.", "Reorder, remove or add videos. Already played items, or items before the current one, change only in the <strong>next cycle</strong>. Upcoming items change immediately without seeking or interrupting playback; the playing video remains until it ends.")}</p>
             <ol id="lt-admin-queue" class="lt-admin-queue"></ol>
-            <label for="lt-admin-current-search">Προσθήκη δημόσιου βίντεο στην τρέχουσα playlist</label>
-            <input id="lt-admin-current-search" placeholder="Αναζήτηση τίτλου βίντεο">
+            <label for="lt-admin-current-search">${uiText("Προσθήκη δημόσιου βίντεο στην τρέχουσα playlist", "Add a public video to the current playlist")}</label>
+            <input id="lt-admin-current-search" placeholder="${uiText("Αναζήτηση τίτλου βίντεο", "Search video titles")}">
             <p id="lt-admin-current-search-message"></p>
             <div id="lt-admin-current-results" class="lt-admin-library"></div>
-            <button type="button" id="lt-admin-order-save" disabled>Αποθήκευση αλλαγών playlist</button></section>
-          <section class="lt-admin-card"><h2>Ενδιάμεσα σποτ</h2>
-            <p>Τα σποτ παίζουν με τη σειρά τους μετά από κάθε βίντεο, πριν από το επόμενο,
-              καθώς και αμέσως μετά το τέλος του live. Δέχονται δημόσια ή μη καταχωρισμένα
-              (unlisted) PeerTube βίντεο. Δεν αποτελούν μέρος των κανονικών playlists.</p>
+            <button type="button" id="lt-admin-order-save" disabled>${uiText("Αποθήκευση αλλαγών playlist", "Save playlist changes")}</button></section>
+          <section class="lt-admin-card"><h2>${uiText("Ενδιάμεσα σποτ", "Interstitial spots")}</h2>
+            <p>${uiText("Spots play in order between programme videos and on return from live. Public and unlisted PeerTube videos are supported. Spots are not part of the normal playlists.", "Spots play in order between programme videos. After live, only the next spot plays before the interrupted video resumes. Public and unlisted PeerTube videos are supported. Spots are not part of programme playlists.")}</p>
             <ol id="lt-admin-spots" class="lt-admin-queue"></ol>
-            <label for="lt-admin-spot-input">UUID ή σύνδεσμος PeerTube σποτ</label>
+            <label for="lt-admin-spot-input">${uiText("UUID ή σύνδεσμος PeerTube σποτ", "Spot UUID or PeerTube URL")}</label>
             <input id="lt-admin-spot-input" placeholder="https://your-peertube.example/w/UUID">
-            <button type="button" id="lt-admin-spot-add">Προσθήκη σποτ</button>
+            <button type="button" id="lt-admin-spot-add">${uiText("Προσθήκη σποτ", "Add spot")}</button>
             <p id="lt-admin-spots-message" role="status"></p>
-            <button type="button" id="lt-admin-spots-save" disabled>Αποθήκευση σποτ</button></section>
-          <section class="lt-admin-card"><h2>Επόμενες TV playlists</h2>
-            <p>Ξεκινούν διαδοχικά, μόλις ολοκληρωθεί η τρέχουσα playlist.</p>
+            <button type="button" id="lt-admin-spots-save" disabled>${uiText("Αποθήκευση σποτ", "Save spots")}</button></section>
+          <section class="lt-admin-card"><h2>${uiText("Επόμενες TV playlists", "Upcoming TV playlists")}</h2>
+            <p>${uiText("Ξεκινούν διαδοχικά, μόλις ολοκληρωθεί η τρέχουσα playlist.", "These play in order after the current playlist finishes.")}</p>
             <ol id="lt-admin-scheduled" class="lt-admin-queue"></ol>
-            <button type="button" id="lt-admin-scheduled-save" disabled>Αποθήκευση σειράς playlists</button></section>
-          <section class="lt-admin-card"><h2>Αποθηκευμένες TV playlists</h2>
+            <button type="button" id="lt-admin-scheduled-save" disabled>${uiText("Αποθήκευση σειράς playlists", "Save playlist order")}</button></section>
+          <section class="lt-admin-card"><h2>${uiText("Αποθηκευμένες TV playlists", "Saved TV playlists")}</h2>
             <div id="lt-admin-saved"></div></section>
-          <section class="lt-admin-card"><h2>Δημιουργία νέας TV playlist</h2>
-            <label for="lt-admin-name">Όνομα playlist</label>
-            <input id="lt-admin-name" maxlength="100" placeholder="π.χ. Απογευματινό πρόγραμμα">
-            <label for="lt-admin-search">Αναζήτηση δημόσιων βίντεο στις επιλεγμένες πηγές</label>
-            <input id="lt-admin-search" placeholder="Τίτλος βίντεο">
+          <section class="lt-admin-card"><h2>${uiText("Δημιουργία νέας TV playlist", "Create a TV playlist")}</h2>
+            <label for="lt-admin-name">${uiText("Όνομα playlist", "Playlist name")}</label>
+            <input id="lt-admin-name" maxlength="100" placeholder="${uiText("π.χ. Απογευματινό πρόγραμμα", "e.g. Afternoon programme")}">
+            <label for="lt-admin-search">${uiText("Αναζήτηση δημόσιων βίντεο στις επιλεγμένες πηγές", "Search public videos from configured sources")}</label>
+            <input id="lt-admin-search" placeholder="${uiText("Τίτλος βίντεο", "Video title")}">
             <p id="lt-admin-search-message"></p>
             <div id="lt-admin-results" class="lt-admin-library"></div>
-            <h3>Βίντεο νέας playlist</h3><ol id="lt-admin-draft" class="lt-admin-queue"></ol>
-            <button type="button" id="lt-admin-create" disabled>Αποθήκευση νέας playlist</button>
+            <h3>${uiText("Βίντεο νέας playlist", "Videos in new playlist")}</h3><ol id="lt-admin-draft" class="lt-admin-queue"></ol>
+            <button type="button" id="lt-admin-create" disabled>${uiText("Αποθήκευση νέας playlist", "Save new playlist")}</button>
           </section>
         </section>`
       const $ = sel => rootEl.querySelector(sel)
@@ -76,7 +79,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
       let spotLookup = new Map()
       let active = true
       let searchTimer
-      const stamp = ts => ts === null || !Number.isFinite(ts) ? 'Μετά το live / υπό υπολογισμό'
+      const stamp = ts => ts === null || !Number.isFinite(ts) ? uiText("Μετά το live / υπό υπολογισμό", "After live / calculating")
         : new Date(ts).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
       const duration = items => Math.ceil(items.reduce((sum, item) => sum + item.duration, 0) / 60)
       const notice = (message, isError = false) => {
@@ -113,7 +116,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
           li.appendChild(actions)
           actions.appendChild(button('↑', () => onMove(index, index - 1), index === 0 || options.disabled))
           actions.appendChild(button('↓', () => onMove(index, index + 1), index === items.length - 1 || options.disabled))
-          if (options.remove) actions.appendChild(button('Αφαίρεση', () => options.remove(item, index),
+          if (options.remove) actions.appendChild(button(uiText("Αφαίρεση", "Remove"), () => options.remove(item, index),
             !!options.disabled || !!options.removeDisabled?.(item, index)))
           li.addEventListener('dragstart', event => {
             if (options.disabled) { event.preventDefault(); return }
@@ -147,11 +150,11 @@ function mountProgramme (rootEl, peertubeHelpers) {
           isDirty = false
           scheduledDirty = false
           spotsDirty = false
-          notice('Αποθηκεύτηκε. Η αναπαραγωγή συνεχίζεται χωρίς επανεκκίνηση.')
+          notice(uiText("Αποθηκεύτηκε. Η αναπαραγωγή συνεχίζεται χωρίς επανεκκίνηση.", "Saved. Playback continues without restarting."))
           render()
           return true
         } catch (err) {
-          notice(err.message + ' — ανανέωσε τα στοιχεία.', true)
+          notice(err.message + uiText(" — ανανέωσε τα στοιχεία.", " — refresh the data."), true)
           await reload()
           return false
         }
@@ -164,10 +167,10 @@ function mountProgramme (rootEl, peertubeHelpers) {
           const v = cycleLookup.get(id)
           if (!v) return null
           let prefix
-          if (id === currentUuid) prefix = '▶ Τώρα παίζει · '
-          else if (played.has(id)) prefix = '✓ Προβλήθηκε · '
-          else if (i < currentIndex) prefix = '↺ Επόμενος κύκλος · '
-          else prefix = '→ Ακολουθεί · '
+          if (id === currentUuid) prefix = uiText("▶ Τώρα παίζει · ", "▶ Now playing · ")
+          else if (played.has(id)) prefix = uiText("✓ Προβλήθηκε · ", "✓ Played · ")
+          else if (i < currentIndex) prefix = uiText("↺ Επόμενος κύκλος · ", "↺ Next cycle · ")
+          else prefix = uiText("→ Ακολουθεί · ", "→ Upcoming · ")
           return { ...v, name: prefix + v.name }
         }).filter(Boolean)
         buildOrderList(els.queue, items, (from, to) => {
@@ -183,8 +186,8 @@ function mountProgramme (rootEl, peertubeHelpers) {
         })
         els.queueSave.disabled = data.live || !isDirty || !cycleOrder.length
         if (!items.length) els.queue.appendChild(textNode('li', data.live
-          ? 'Κατά τη διάρκεια live δεν τροποποιείται η τρέχουσα playlist.'
-          : 'Δεν υπάρχουν διαθέσιμα βίντεο.'))
+          ? uiText("Κατά τη διάρκεια live δεν τροποποιείται η τρέχουσα playlist.", "The current playlist cannot be edited during live.")
+          : uiText("Δεν υπάρχουν διαθέσιμα βίντεο.", "No available videos.")))
         renderCurrentLibrary()
       }
       function renderCurrentLibrary () {
@@ -194,7 +197,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
           row.className = 'lt-admin-row'
           row.appendChild(textNode('span', `${item.name} · ${item.channelName} · ${Math.ceil(item.duration / 60)}′`))
           const alreadyAdded = cycleOrder.includes(item.uuid)
-          row.appendChild(button(alreadyAdded ? 'Προστέθηκε' : 'Προσθήκη', () => {
+          row.appendChild(button(alreadyAdded ? uiText("Προστέθηκε", "Added") : uiText("Προσθήκη", "Add"), () => {
             if (cycleOrder.includes(item.uuid) || cycleOrder.length >= 100 || data.live) return
             cycleLookup.set(item.uuid, item)
             cycleOrder.push(item.uuid)
@@ -211,21 +214,21 @@ function mountProgramme (rootEl, peertubeHelpers) {
         }, {
           remove: (_, index) => { spotOrder.splice(index, 1); spotsDirty = true; renderSpots() }
         })
-        if (!items.length) els.spots.appendChild(textNode('li', 'Δεν έχουν οριστεί ενδιάμεσα σποτ.'))
+        if (!items.length) els.spots.appendChild(textNode('li', uiText("Δεν έχουν οριστεί ενδιάμεσα σποτ.", "No interstitial spots configured.")))
         els.spotsSave.disabled = !spotsDirty || data.interstitial
         els.spotsMessage.textContent = data.interstitial
-          ? 'Παίζει σποτ. Η αλλαγή επιτρέπεται μόλις ολοκληρωθεί.'
-          : items.length + ' σποτ · διάρκεια διαλείμματος: ' + duration(items) + '′'
+          ? uiText("Παίζει σποτ. Η αλλαγή επιτρέπεται μόλις ολοκληρωθεί.", "A spot is playing. Changes are allowed after it finishes.")
+          : items.length + uiText(" σποτ · διάρκεια διαλείμματος: ", " spots · break duration: ") + duration(items) + '′'
       }
       function renderScheduled () {
         const map = new Map(data.pending.map(x => [x.id, x]))
         const items = pendingOrder.map(id => map.get(id)).filter(Boolean)
         buildOrderList(els.scheduled, items.map(x => ({ ...x, name: x.name + ' — ' + x.count +
-          ' βίντεο · έναρξη: ' + stamp(x.startsAt) })), (from, to) => {
+          uiText(" βίντεο · έναρξη: ", " videos · starts: ") + stamp(x.startsAt) })), (from, to) => {
           if (move(pendingOrder, from, to)) { scheduledDirty = true; renderScheduled() }
         }, { remove: item => mutate('/schedule/' + encodeURIComponent(item.id), 'DELETE', {}) })
         els.scheduledSave.disabled = !scheduledDirty
-        if (!items.length) els.scheduled.appendChild(textNode('li', 'Δεν υπάρχουν επόμενες playlists.'))
+        if (!items.length) els.scheduled.appendChild(textNode('li', uiText("Δεν υπάρχουν επόμενες playlists.", "No upcoming playlists.")))
       }
       function renderSaved () {
         els.saved.replaceChildren()
@@ -235,22 +238,22 @@ function mountProgramme (rootEl, peertubeHelpers) {
           div.appendChild(textNode('span', `${item.name} — ${item.items.length} βίντεο · ${duration(item.items)}′`))
           const actions = document.createElement('div')
           actions.className = 'lt-admin-actions'
-          actions.append(button('Προσθήκη μετά την τρέχουσα', () => mutate('/schedule', 'POST', { playlistId: item.id })),
-            button('Διαγραφή', () => {
-              if (window.confirm('Να διαγραφεί η αποθηκευμένη playlist;')) {
+          actions.append(button(uiText("Προσθήκη μετά την τρέχουσα", "Schedule after current"), () => mutate('/schedule', 'POST', { playlistId: item.id })),
+            button(uiText("Διαγραφή", "Delete"), () => {
+              if (window.confirm(uiText("Να διαγραφεί η αποθηκευμένη playlist;", "Delete this saved playlist?"))) {
                 void mutate('/playlists/' + encodeURIComponent(item.id), 'DELETE', {})
               }
             }))
           div.appendChild(actions)
           els.saved.appendChild(div)
         }
-        if (!data.playlists.length) els.saved.appendChild(textNode('p', 'Δεν υπάρχουν αποθηκευμένες playlists.'))
+        if (!data.playlists.length) els.saved.appendChild(textNode('p', uiText("Δεν υπάρχουν αποθηκευμένες playlists.", "No saved playlists.")))
       }
       function renderDraft () {
         buildOrderList(els.draft, draft, (from, to) => { if (move(draft, from, to)) renderDraft() },
           { remove: item => { draft = draft.filter(v => v.uuid !== item.uuid); renderDraft() } })
         els.create.disabled = !draft.length || !els.name.value.trim()
-        if (!draft.length) els.draft.appendChild(textNode('li', 'Διάλεξε βίντεο από την αναζήτηση.'))
+        if (!draft.length) els.draft.appendChild(textNode('li', uiText("Διάλεξε βίντεο από την αναζήτηση.", "Select videos from the search results.")))
         renderLibrary()
       }
       function renderLibrary () {
@@ -259,7 +262,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
           const row = document.createElement('div')
           row.className = 'lt-admin-row'
           row.appendChild(textNode('span', `${item.name} · ${item.channelName} · ${Math.ceil(item.duration / 60)}′`))
-          row.appendChild(button(draft.some(v => v.uuid === item.uuid) ? 'Προστέθηκε' : 'Προσθήκη',
+          row.appendChild(button(draft.some(v => v.uuid === item.uuid) ? uiText("Προστέθηκε", "Added") : uiText("Προσθήκη", "Add"),
             () => { if (!draft.some(v => v.uuid === item.uuid) && draft.length < 100) { draft.push(item); renderDraft() } },
             draft.some(v => v.uuid === item.uuid) || draft.length >= 100))
           els.library.appendChild(row)
@@ -267,8 +270,8 @@ function mountProgramme (rootEl, peertubeHelpers) {
       }
       function render () {
         if (!data) return
-        els.current.textContent = (data.interstitial ? 'Σποτ · ' : '') + (data.current?.name || 'Χωρίς πρόγραμμα')
-        els.active.textContent = `${data.active.name} · ${data.live ? 'LIVE' : data.interstitial ? 'SPOT' : 'VOD'}${data.currentEndsAt === null ? '' : ' · ολοκλήρωση: ' + stamp(data.currentEndsAt)}`
+        els.current.textContent = (data.interstitial ? uiText("Σποτ · ", "Spot · ") : '') + (data.current?.name || uiText("Χωρίς πρόγραμμα", "No programme"))
+        els.active.textContent = `${data.active.name} · ${data.live ? 'LIVE' : data.interstitial ? 'SPOT' : 'VOD'}${data.currentEndsAt === null ? '' : uiText(" · ολοκλήρωση: ", " · ends: ") + stamp(data.currentEndsAt)}`
         if (!isDirty) {
           const items = data.cycle?.items || data.upcoming
           cycleOrder = items.map(x => x.uuid)
@@ -288,28 +291,28 @@ function mountProgramme (rootEl, peertubeHelpers) {
           data = newData
           render()
           return true
-        } catch (err) { notice('Δεν ήταν δυνατή η φόρτωση: ' + err.message, true) }
+        } catch (err) { notice(uiText("Δεν ήταν δυνατή η φόρτωση: ", "Could not load: ") + err.message, true) }
       }
       async function search () {
         try {
           const term = els.search.value.trim()
-          els.searchMessage.textContent = 'Αναζήτηση…'
+          els.searchMessage.textContent = uiText("Αναζήτηση…", "Searching…")
           const result = await api('/library?search=' + encodeURIComponent(term))
           if (!active || term !== els.search.value.trim()) return
           library = result.items || []
-          els.searchMessage.textContent = library.length + ' διαθέσιμα δημόσια βίντεο'
+          els.searchMessage.textContent = library.length + uiText(" διαθέσιμα δημόσια βίντεο", " available public videos")
           renderLibrary()
-        } catch (err) { els.searchMessage.textContent = 'Σφάλμα αναζήτησης: ' + err.message }
+        } catch (err) { els.searchMessage.textContent = uiText("Σφάλμα αναζήτησης: ", "Search error: ") + err.message }
       }
       function addSpotInput () {
         const input = els.spotInput.value.trim()
         const found = input.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
-        if (!found) { els.spotsMessage.textContent = 'Χρειάζεται πλήρες UUID βίντεο.'; return }
+        if (!found) { els.spotsMessage.textContent = uiText("Χρειάζεται πλήρες UUID βίντεο.", "A complete video UUID is required."); return }
         const uuid = found[0].toLowerCase()
-        if (spotOrder.includes(uuid)) { els.spotsMessage.textContent = 'Το σποτ υπάρχει ήδη.'; return }
-        if (spotOrder.length >= 20) { els.spotsMessage.textContent = 'Μέγιστο 20 σποτ.'; return }
+        if (spotOrder.includes(uuid)) { els.spotsMessage.textContent = uiText("Το σποτ υπάρχει ήδη.", "This spot is already listed."); return }
+        if (spotOrder.length >= 20) { els.spotsMessage.textContent = uiText("Μέγιστο 20 σποτ.", "Maximum 20 spots."); return }
         spotOrder.push(uuid)
-        spotLookup.set(uuid, { uuid, name: 'Νέο σποτ · ' + uuid, duration: 0 })
+        spotLookup.set(uuid, { uuid, name: uiText("Νέο σποτ · ", "New spot · ") + uuid, duration: 0 })
         els.spotInput.value = ''
         spotsDirty = true
         renderSpots()
@@ -333,13 +336,13 @@ function mountProgramme (rootEl, peertubeHelpers) {
       async function searchForCurrent () {
         try {
           const term = els.currentSearch.value.trim()
-          els.currentSearchMessage.textContent = 'Αναζήτηση…'
+          els.currentSearchMessage.textContent = uiText("Αναζήτηση…", "Searching…")
           const result = await api('/library?search=' + encodeURIComponent(term))
           if (!active || term !== els.currentSearch.value.trim()) return
           currentLibrary = result.items || []
-          els.currentSearchMessage.textContent = currentLibrary.length + ' διαθέσιμα δημόσια βίντεο'
+          els.currentSearchMessage.textContent = currentLibrary.length + uiText(" διαθέσιμα δημόσια βίντεο", " available public videos")
           renderCurrentLibrary()
-        } catch (err) { els.currentSearchMessage.textContent = 'Σφάλμα αναζήτησης: ' + err.message }
+        } catch (err) { els.currentSearchMessage.textContent = uiText("Σφάλμα αναζήτησης: ", "Search error: ") + err.message }
       }
       els.currentSearch.addEventListener('input', () => {
         clearTimeout(currentSearchTimer)
@@ -367,7 +370,7 @@ const TV_SETTINGS_URL = TV_SETTINGS_PATH + '?tv-programme=1'
 function register ({ registerClientRoute, registerHook, peertubeHelpers, router }) {
   registerClientRoute({
     route: 'tv-programme',
-    title: 'TV — Προγραμματισμός',
+    title: uiText("TV — Προγραμματισμός", "TV — Programme"),
     onMount: ({ rootEl }) => { mountProgramme(rootEl, peertubeHelpers) }
   })
 
@@ -406,7 +409,7 @@ function register ({ registerClientRoute, registerHook, peertubeHelpers, router 
       tab = document.createElement('a')
       tab.className = tabClass
       tab.href = TV_SETTINGS_URL
-      tab.textContent = 'Προγραμματισμός TV'
+      tab.textContent = uiText("Προγραμματισμός TV", "TV programme")
       tab.addEventListener('click', event => {
         if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
         event.preventDefault()
