@@ -12,8 +12,7 @@ function registerClient (client, translate) {
   let menuHook, route
   client.register({
     registerHook (options) {
-      assert.equal(options.target, 'filter:left-menu.links.create.result')
-      menuHook = options.handler
+      if (options.target === 'filter:left-menu.links.create.result') menuHook = options.handler
     },
     registerClientRoute (options) { route = options },
     peertubeHelpers: {

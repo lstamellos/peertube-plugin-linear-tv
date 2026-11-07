@@ -72,7 +72,8 @@ test('Embed toggle shows and hides the instance-specific snippet without touchin
     mountLinearTV(root, {
       routerBase: '/plugins/linear-tv/0.2.8/router',
       staticBase: '/plugins/linear-tv/0.2.8/static',
-      embedded: false
+      embedded: false,
+      showEmbed: true
     })
     assert.match(root.innerHTML, /id="lt-embed-toggle"[^>]*>Embed<\/button>/)
     assert.match(root.innerHTML, /id="lt-embed-code"/)
