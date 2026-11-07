@@ -53,28 +53,39 @@ test('successive spots run between VODs with synchronized boundaries and correct
   assert.equal(T.status(JSON.parse(JSON.stringify(s)), 42000).current.uuid, id(2))
 })
 
-test('after live, show all spots before the next entire VOD', () => {
+test('after live, play only the next spot and resume the interrupted VOD offset', () => {
   const s = ready()
   T.applyLive(s, [live()], 20000)
-  assert.deepEqual(T.status(s, 50000).upcomingAfterLive.slice(0, 3).map(x => x.uuid),
-    [id(5), id(6), id(2)])
+  assert.equal(s.paused.offset, 20)
+  assert.deepEqual(T.status(s, 50000).upcomingAfterLive.map(x => x.uuid).slice(0, 3),
+    [id(5), id(1), id(2)])
+  assert.equal(T.status(s, 50000).upcomingAfterLive[1].resumeOffsetSeconds, 20)
   T.applyLive(s, [], 100000)
   assert.equal(T.status(s, 100000).current.uuid, id(5))
-  assert.equal(T.status(s, 100000).upcoming[0].startsAt, 112000)
-  assert.equal(T.status(s, 105000).current.uuid, id(6))
-  assert.equal(T.status(s, 112000).current.uuid, id(2))
-  assert.equal(T.status(s, 112000).elapsedSeconds, 0)
-  assert.equal(T.status(s, 152000).current.uuid, id(5))
+  assert.equal(T.status(s, 100000).elapsedSeconds, 0)
+  assert.equal(T.status(s, 100000).upcoming[0].uuid, id(1))
+  assert.equal(T.status(s, 100000).upcoming[0].startsAt, 105000)
+  assert.equal(T.status(s, 100000).upcoming[0].endsAt, 115000)
+  assert.equal(T.status(s, 105000).current.uuid, id(1))
+  assert.equal(T.status(s, 105000).elapsedSeconds, 20)
+  assert.equal(T.status(s, 109000).elapsedSeconds, 24)
+  assert.equal(T.status(s, 115000).current.uuid, id(5))
+  assert.equal(T.status(s, 120000).current.uuid, id(6))
+  assert.equal(T.status(s, 127000).current.uuid, id(2))
 })
-
-test('a live interrupting a spot returns to fresh spots then the next programme', () => {
+test('live interruption of an ordinary spot resumes that exact segment after one return spot', () => {
   const s = ready()
+  assert.equal(T.status(s, 31000).current.uuid, id(5))
+  assert.equal(T.status(s, 31000).elapsedSeconds, 1)
   T.applyLive(s, [live()], 31000)
+  assert.equal(s.paused.offset, 31)
   T.applyLive(s, [], 50000)
   assert.equal(T.status(s, 50000).current.uuid, id(5))
-  assert.equal(T.status(s, 62000).current.uuid, id(2))
+  assert.equal(T.status(s, 55000).current.uuid, id(5))
+  assert.equal(T.status(s, 55000).elapsedSeconds, 1)
+  assert.equal(T.status(s, 59000).current.uuid, id(6))
+  assert.equal(T.status(s, 66000).current.uuid, id(2))
 })
-
 test('scheduled playlists transition after the last interstitial, not before', () => {
   const s = ready()
   P.addPlaylist(s, { id: 'next', name: 'Next', items: [vod(3, 10)] })
@@ -89,19 +100,20 @@ test('scheduled playlists transition after the last interstitial, not before', (
   assert.equal(s.programming.endsAt, 116000)
 })
 
-test('live with a scheduled playlist adds intro and all subsequent breaks', () => {
+test('live return with scheduled playlist counts one spot and unplayed remainder only', () => {
   const s = ready()
   P.addPlaylist(s, { id: 'later', name: 'Later', items: [vod(3, 10)] })
   P.schedule(s, 'later', 20000, 'slot')
   T.applyLive(s, [live()], 20000)
   T.applyLive(s, [], 100000)
   P.extendAfterLive(s, 100000)
-  assert.equal(s.programming.endsAt, 206000)
-  assert.equal(P.advance(s, 205999), false)
-  assert.equal(P.advance(s, 206000), true)
-  assert.equal(T.status(s, 206000).current.uuid, id(3))
+  assert.equal(s.programming.endsAt, 179000)
+  assert.equal(T.status(s, 105000).current.uuid, id(1))
+  assert.equal(T.status(s, 105000).elapsedSeconds, 20)
+  assert.equal(P.advance(s, 178999), false)
+  assert.equal(P.advance(s, 179000), true)
+  assert.equal(T.status(s, 179000).current.uuid, id(3))
 })
-
 test('spot edits preserve a playing VOD and cannot interrupt an airing spot', () => {
   const s = ready()
   P.setSpots(s, [spot(7, 8)], 16000)
@@ -113,11 +125,61 @@ test('spot edits preserve a playing VOD and cannot interrupt an airing spot', ()
   assert.equal(T.status(s, 39000).current.uuid, id(2))
 })
 
-test('legacy saved programme without spots remains unchanged', () => {
+test('legacy state without spots still resumes interrupted VOD at saved offset', () => {
   const s = ready()
   delete s.spots
   assert.equal(T.status(s, 30000).current.uuid, id(2))
   T.applyLive(s, [live()], 31000)
+  assert.equal(s.paused.uuid, id(2))
+  assert.equal(s.paused.offset, 1)
   T.applyLive(s, [], 50000)
-  assert.equal(T.status(s, 50000).current.uuid, id(1))
+  assert.equal(T.status(s, 50000).current.uuid, id(2))
+  assert.equal(T.status(s, 50000).elapsedSeconds, 1)
+})
+
+test('consecutive live interruptions rotate only one spot each time', () => {
+  const s = ready()
+  T.applyLive(s, [live()], 18000)
+  T.applyLive(s, [], 40000)
+  assert.equal(T.status(s, 40000).current.uuid, id(5))
+  assert.equal(T.status(s, 45000).current.uuid, id(1))
+  assert.equal(T.status(s, 45000).elapsedSeconds, 18)
+  T.applyLive(s, [live()], 47000)
+  assert.equal(s.paused.offset, 20)
+  assert.equal(T.status(s, 50000).upcomingAfterLive[0].uuid, id(6))
+  T.applyLive(s, [], 80000)
+  assert.equal(T.status(s, 80000).current.uuid, id(6))
+  assert.equal(T.status(s, 87000).current.uuid, id(1))
+  assert.equal(T.status(s, 87000).elapsedSeconds, 20)
+  assert.equal(s.nextSpotIndex, 0)
+  const saved = JSON.parse(JSON.stringify(s))
+  assert.equal(T.status(saved, 88000).elapsedSeconds, 21)
+  T.applyLive(saved, [live()], 90000)
+  T.applyLive(saved, [], 120000)
+  assert.equal(T.status(saved, 120000).current.uuid, id(5))
+})
+
+test('restart during return spot preserves the selected spot and the paused offset', () => {
+  const s = ready()
+  T.applyLive(s, [live()], 19000)
+  T.applyLive(s, [], 100000)
+  const persisted = JSON.parse(JSON.stringify(s))
+  assert.equal(T.status(persisted, 102000).current.uuid, id(5))
+  assert.equal(T.status(persisted, 102000).elapsedSeconds, 2)
+  assert.equal(T.status(persisted, 105000).current.uuid, id(1))
+  assert.equal(T.status(persisted, 105000).elapsedSeconds, 19)
+  assert.deepEqual(T.status(persisted, 102000).upcoming.map(v => v.uuid).slice(0, 2),
+    [id(1), id(2)])
+})
+
+test('reordering sources during a return spot does not advance the paused programme', () => {
+  const s = ready()
+  T.applyLive(s, [live()], 15000)
+  T.applyLive(s, [], 40000)
+  assert.equal(T.status(s, 41000).current.uuid, id(5))
+  T.setQueue(s, [vod(1), vod(3, 10), vod(2, 40)], 41000)
+  assert.equal(T.status(s, 43000).current.uuid, id(5))
+  assert.equal(T.status(s, 45000).current.uuid, id(1))
+  assert.equal(T.status(s, 45000).elapsedSeconds, 15)
+  assert.equal(T.status(s, 57000).upcoming[0].uuid, id(3))
 })
