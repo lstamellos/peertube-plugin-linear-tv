@@ -72,7 +72,7 @@ test('saved playlists can be reordered, cancelled or deleted without altering th
   assert.equal(timeline.currentVod(s, 1000).video.uuid, before.video.uuid)
   assert.throws(() => p.reorderScheduled(s, ['s1', 's2']), /Invalid/)
 })
-test('live preemption keeps scheduled playlist waiting, new public VOD first after live', () => {
+test('live preemption keeps scheduled playlist waiting and resumes interrupted VOD first', () => {
   const s = ready()
   p.addPlaylist(s, { id: 'custom', name: 'Custom', items: [video(5, 40)] })
   p.schedule(s, 'custom', 10000, 'slot')
@@ -84,7 +84,9 @@ test('live preemption keeps scheduled playlist waiting, new public VOD first aft
   assert.equal(p.advance(s, originalEnd + 100000), false)
   timeline.applyLive(s, [], 30000)
   p.extendAfterLive(s, 30000)
-  assert.equal(s.queue[0].uuid, id(4))
+  assert.equal(s.queue[0].uuid, id(1))
+  assert.equal(timeline.status(s, 30000).elapsedSeconds, 15)
+  assert.equal(s.queue[1].uuid, id(4))
   assert.ok(s.programming.endsAt > 30000)
   assert.equal(s.programming.pending.length, 1)
 })
