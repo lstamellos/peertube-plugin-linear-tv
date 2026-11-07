@@ -457,4 +457,4 @@ function register ({ registerClientRoute, registerHook, peertubeHelpers, router 
   if (typeof window !== 'undefined' && typeof document !== 'undefined') scheduleSync()
 }
 
-export { register, mountProgramme, TV_SETTINGS_URL }
+export { register, mountProgramme, TV_SETTINGS_URL, uiText }
