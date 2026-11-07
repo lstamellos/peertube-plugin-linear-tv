@@ -204,6 +204,26 @@ function isProgrammeSynced (payload, playingUuid, currentTime, playing, expected
     Number.isFinite(expectedTime) && Math.abs(currentTime - expectedTime) <= 3.5
 }
 
+// Detect deliberate timeline interaction instead of Video.js "seeking" alone:
+// Video.js also emits "seeking" for programmatic corrections and initial start.
+function isIntentionalSeekInput (event) {
+  const target = event?.target
+  if (!target || typeof target.closest !== 'function') return false
+  if (event.type === 'pointerdown' || event.type === 'mousedown' || event.type === 'touchstart') {
+    return !!target.closest('.vjs-progress-control, .vjs-progress-holder')
+  }
+  if (event.type !== 'keydown' || event.repeat) return false
+  if (target.isContentEditable || target.closest('input, textarea, select, [contenteditable="true"]')) return false
+  if (target.closest('.vjs-volume-control, .vjs-volume-panel')) return false
+  const key = event.key
+  const timeline = !!target.closest('.vjs-progress-control, .vjs-progress-holder')
+  const playerFocused = !!target.closest('.video-js')
+  if (['Home', 'End'].includes(key)) return timeline
+  if (['ArrowLeft', 'ArrowRight'].includes(key)) return timeline || playerFocused
+  if (['j', 'J', 'l', 'L'].includes(key)) return playerFocused
+  return false
+}
+
 function register ({ registerClientRoute, registerHook, peertubeHelpers }) {
   if (typeof registerHook === 'function') {
     registerHook({
@@ -310,6 +330,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   let lastPayload = null
   let lastReceived = 0
   let syncRequested = false
+  let autoSyncEnabled = true
 
   const clock = ms => new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
   const text = (node, value) => { node.textContent = value || '' }
@@ -357,11 +378,28 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       const currentTime = payload.mode === 'vod' ? await instance.getCurrentTime() : NaN
       if (!active || player !== instance || activeUUID !== uuid ||
           lastPayload !== payload) return
-      showSyncState(isProgrammeSynced(payload, uuid, currentTime, playing,
+      showSyncState(autoSyncEnabled && isProgrammeSynced(payload, uuid, currentTime, playing,
         expectedOffset(), payload.mode === 'live' ? atLiveEdge() : true))
     } catch {
       if (player === instance && lastPayload === payload) showSyncState(false)
     }
+  }
+  function observeManualSeeking (iframe, token) {
+    try {
+      if (iframe.contentWindow.location.origin !== window.location.origin) return
+      const frameDocument = iframe.contentWindow.document
+      const onSeekInput = event => {
+        if (!active || playerToken !== token || !isIntentionalSeekInput(event)) return
+        autoSyncEnabled = false
+        showSyncState(false)
+      }
+      // Capturing listeners see timeline pointer and keyboard gestures inside
+      // PeerTube's same-origin native player, but not scripted player.seek().
+      frameDocument.addEventListener('pointerdown', onSeekInput, true)
+      frameDocument.addEventListener('mousedown', onSeekInput, true)
+      frameDocument.addEventListener('touchstart', onSeekInput, true)
+      frameDocument.addEventListener('keydown', onSeekInput, true)
+    } catch { /* Player iframe may be unavailable/cross-origin. */ }
   }
   async function attachPlayer (iframe, token) {
     const PlayerClass = await loadSDK()
@@ -371,8 +409,10 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       await instance.ready
       if (!active || playerToken !== token) return
       player = instance
-      // Align a newly created player. Never re-seek an existing player on polls.
-      if (lastPayload?.mode === 'vod') await synchronizePlayer()
+      observeManualSeeking(iframe, token)
+      // A freshly loaded VOD starts on the programme offset. Keep automatic
+      // corrections active unless the viewer has deliberately used seeking.
+      if (autoSyncEnabled && lastPayload?.mode === 'vod') await synchronizePlayer()
       await refreshSyncControl()
     } catch { /* iframe may have been replaced before API initialization */ }
   }
@@ -521,13 +561,15 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   async function update () {
     if (!active || requestBusy) return
     requestBusy = true
+    // Consume a pending click once. Failed requests must not cause a retry loop.
+    const manualSync = syncRequested
+    syncRequested = false
     try {
       const response = await fetch(routerBase + '/status', { cache: 'no-store' })
       if (!response.ok) throw new Error('HTTP ' + response.status)
       const payload = await response.json()
       if (!active || !rootEl.isConnected) return
-      const manualSync = syncRequested
-      syncRequested = false
+      if (manualSync) autoSyncEnabled = true
       const sameMedia = payload.current?.uuid === activeUUID &&
         (payload.mode === 'live') === isLive
       const reloadLive = manualSync && payload.mode === 'live' && sameMedia
@@ -541,12 +583,12 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
         : payload.interstitial ? `${uiText('Ενδιάμεσο σποτ · έως ', 'Interstitial spot · until ')}${clock(payload.endsAt)}`
           : payload.mode === 'vod' ? `${uiText('Έως ', 'Until ')}${clock(payload.endsAt)} · ${payload.current.channelName}` : '')
       setVideo(payload, reloadLive)
-      // An explicit sync always consults the latest server status. For a VOD
-      // it seeks/plays the current programme; for a live it reloads at the
-      // stream edge. Routine polling never undoes the viewer's pause/seek.
-      if (manualSync && payload.mode === 'vod') {
+      // Reconcile the player every 5 seconds while automatic sync is enabled.
+      // Manual timeline seeking suspends these corrections until Sync is clicked;
+      // programme boundaries and live preemption continue independently.
+      if (payload.mode === 'vod' && autoSyncEnabled) {
         if (player) await synchronizePlayer()
-        else if (payload.current && sameMedia) setVideo(payload, true)
+        else if (manualSync && payload.current && sameMedia) setVideo(payload, true)
       }
       scheduleBoundaryUpdate(payload)
       renderSchedule(payload)
@@ -574,4 +616,4 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     void update()
   }, 5000)
 }
-export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, isProgrammeSynced, uiText, generateEmbedCode, generateHomepageTag }
+export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, isProgrammeSynced, isIntentionalSeekInput, uiText, generateEmbedCode, generateHomepageTag }
