@@ -12,8 +12,9 @@ A shared, television-style player for a PeerTube instance. Linear TV schedules p
 - **EPG:** displays upcoming programme VODs with estimated start times and external links to their individual watch pages. The complete EPG hides during live, then returns with recalculated times.
 - **Programme management:** an administrator can edit the current/next cycle, create reusable playlists, schedule them, reorder them, and manage spots without restarting the playing VOD.
 - **Optional persistent chat:** integrate a single room from `peertube-plugin-livechat` by setting an anchor video UUID.
+- **Native homepage markup:** paste `<peertube-container data-linear-tv="true"></peertube-container>` into PeerTube's custom homepage editor. The plugin renders the existing responsive TV embed in place, with no extra JavaScript or external-origin configuration.
 - **One-click embed code:** a localized **Embed / Ενσωμάτωση** button beside the sound and chat controls shows copyable, instance-specific HTML with automatic height adjustment. The generated URL uses the stable, upgrade-safe plugin route.
-- **Two viewer interfaces:** the native PeerTube `/p/tv` page, and a standalone iframe on `/plugins/linear-tv/router/embed`. Both use the same server-side schedule.
+- **Three viewer surfaces:** the native PeerTube `/p/tv` page, and a standalone iframe on `/plugins/linear-tv/router/embed`. Both use the same server-side schedule, also shared by the homepage markup.
 - **Persistent state:** scheduled playlists, spots and play positions survive plugin/service restarts (within the supported single-process installation).
 
 ## Install or upgrade
@@ -45,6 +46,16 @@ For detailed guidance see [Usage](docs/USAGE.md), [Features and scheduling rules
 | Allowed external embed origins | 0–20 comma-separated **full origins** such as `https://www.example.org`. Empty = iframe embedding only from the PeerTube origin |
 
 Spots and saved playlists are managed separately in the **TV programme** panel, not through the above plugin settings.
+
+## PeerTube homepage custom markup
+
+In **Administration → Settings → Configuration → Homepage** (custom homepage editor), paste:
+
+```html
+<peertube-container data-linear-tv="true"></peertube-container>
+```
+
+The plugin recognizes this built-in, sanitizer-allowed PeerTube tag by its `data-linear-tv` attribute and mounts the existing responsive TV iframe, with live chat and EPG. PeerTube does not expose a plugin API to register new custom tag names, so an arbitrary `<peertube-linear-tv>` element would be removed by PeerTube's markup sanitizer. The same snippet is available from **Watch → Embed → PeerTube homepage tag**.
 
 ## Embed example
 
