@@ -63,10 +63,36 @@ test('programme sync action exists on both watch page and embedded player', asyn
   }
 })
 
-test('normal status polls never automatically undo a viewer pause or seek', () => {
-  assert.match(source, /if \(manualSync && payload\.mode === 'vod'\)/)
+test('only intentional timeline interaction suspends automatic sync', async () => {
+  const { isIntentionalSeekInput } = await loadClient()
+  const el = (selector, editable = false) => ({
+    isContentEditable: editable,
+    closest (query) {
+      const tokens = query.split(',').map(v => v.trim())
+      return tokens.includes(selector) ? this : null
+    }
+  })
+  assert.equal(isIntentionalSeekInput({ type: 'pointerdown', target: el('.vjs-progress-control') }), true)
+  assert.equal(isIntentionalSeekInput({ type: 'touchstart', target: el('.vjs-progress-holder') }), true)
+  assert.equal(isIntentionalSeekInput({ type: 'pointerdown', target: el('.vjs-play-control') }), false)
+  assert.equal(isIntentionalSeekInput({ type: 'pointerdown', target: el('.vjs-volume-control') }), false)
+  assert.equal(isIntentionalSeekInput({ type: 'keydown', key: 'ArrowRight', target: el('.vjs-progress-control') }), true)
+  assert.equal(isIntentionalSeekInput({ type: 'keydown', key: 'ArrowLeft', target: el('.video-js') }), true)
+  assert.equal(isIntentionalSeekInput({ type: 'keydown', key: 'Home', target: el('.vjs-progress-control') }), true)
+  assert.equal(isIntentionalSeekInput({ type: 'keydown', key: ' ', target: el('.video-js') }), false)
+  assert.equal(isIntentionalSeekInput({ type: 'keydown', key: 'ArrowLeft', target: el('input') }), false)
+  assert.equal(isIntentionalSeekInput({ type: 'keydown', key: 'ArrowLeft', target: el('.video-js', true) }), false)
+  assert.equal(isIntentionalSeekInput({ type: 'keydown', key: 'ArrowLeft', repeat: true, target: el('.video-js') }), false)
+})
+
+test('five-second corrections stop only after user seek; button restores them', () => {
+  assert.match(source, /let autoSyncEnabled = true/)
+  assert.match(source, /if \(payload\.mode === 'vod' && autoSyncEnabled\)/)
+  assert.match(source, /if \(autoSyncEnabled && lastPayload\?\.mode === 'vod'\) await synchronizePlayer\(\)/)
+  assert.match(source, /if \(!active \|\| playerToken !== token \|\| !isIntentionalSeekInput\(event\)\) return\s+autoSyncEnabled = false/)
+  assert.match(source, /if \(manualSync\) autoSyncEnabled = true/)
+  assert.match(source, /frameDocument\.addEventListener\('pointerdown'/)
+  assert.match(source, /frameDocument\.addEventListener\('keydown'/)
+  assert.match(source, /syncBtn\.addEventListener\('click'/)
   assert.match(source, /await refreshSyncControl\(\)/)
-  assert.match(source, /if \(lastPayload\?\.mode === 'vod'\) await synchronizePlayer\(\)/)
-  // The old unconditional call at the bottom of update() reset the position every 5 seconds.
-  assert.doesNotMatch(source, /text\(statusEl, payload\.healthy[\s\S]*?await synchronizePlayer\(\)\s*\} catch/)
 })
