@@ -195,6 +195,15 @@ function setProgrammeVisibility (panel, mode) {
   return !panel.hidden
 }
 
+// Compare local player state with the server programme without changing playback.
+// In live mode, a native Video.js live-edge check is used when available.
+function isProgrammeSynced (payload, playingUuid, currentTime, playing, expectedTime, atLiveEdge = true) {
+  if (!payload?.current?.uuid || payload.current.uuid !== playingUuid || !playing) return false
+  if (payload.mode === 'live') return atLiveEdge !== false
+  return payload.mode === 'vod' && Number.isFinite(currentTime) &&
+    Number.isFinite(expectedTime) && Math.abs(currentTime - expectedTime) <= 3.5
+}
+
 function register ({ registerClientRoute, registerHook, peertubeHelpers }) {
   if (typeof registerHook === 'function') {
     registerHook({
@@ -231,6 +240,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
         <main class="lt-main">
           <div class="lt-video" id="lt-video"><div class="lt-placeholder">${uiText("Φόρτωση προγράμματος…", "Loading programme…")}</div></div>
           <div class="lt-player-actions">
+            <button type="button" class="lt-sync" id="lt-sync" disabled aria-live="polite">${uiText("↻ Συγχρονισμός με το πρόγραμμα", "↻ Sync to Programme")}</button>
             <button type="button" class="lt-sound" id="lt-sound">${uiText("Ενεργοποίηση ήχου", "Enable sound")}</button>
             <button type="button" class="lt-chat-toggle" id="lt-chat-toggle" aria-controls="lt-chat" aria-expanded="true">${uiText("Απόκρυψη συνομιλίας", "Hide chat")}</button>
             ${embedded ? '' : `<button type="button" class="lt-embed-toggle" id="lt-embed-toggle" aria-controls="lt-embed-panel" aria-expanded="false">${uiText("Ενσωμάτωση", "Embed")}</button>`}
@@ -273,6 +283,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   const statusEl = el('#lt-status')
   const badge = el('.lt-badge')
   const soundBtn = el('#lt-sound')
+  const syncBtn = el('#lt-sync')
   const chatBody = el('#lt-chat-body')
   const chatPanel = el('#lt-chat')
   const chatToggle = el('#lt-chat-toggle')
@@ -298,6 +309,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   let boundaryTimer = null
   let lastPayload = null
   let lastReceived = 0
+  let syncRequested = false
 
   const clock = ms => new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
   const text = (node, value) => { node.textContent = value || '' }
@@ -318,6 +330,39 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     })
     return sdkPromise
   }
+  function showSyncState (synced, available = true) {
+    syncBtn.hidden = !available
+    syncBtn.disabled = !available || synced
+    syncBtn.textContent = synced
+      ? uiText('✓ Συγχρονισμένο', '✓ Synced')
+      : uiText('↻ Συγχρονισμός με το πρόγραμμα', '↻ Sync to Programme')
+  }
+  function atLiveEdge () {
+    try {
+      const iframe = videoEl.querySelector('iframe')
+      const nativePlayer = iframe?.contentWindow?.videojsPlayer
+      const tracker = nativePlayer?.liveTracker
+      if (typeof tracker?.atLiveEdge === 'function') return tracker.atLiveEdge()
+    } catch { /* The native player is not accessible yet. */ }
+    return true // The native live-edge tracker is not available on every embed.
+  }
+  async function refreshSyncControl () {
+    const instance = player
+    const uuid = activeUUID
+    const payload = lastPayload
+    if (!payload?.current) return showSyncState(false, false)
+    if (!instance) return showSyncState(false)
+    try {
+      const playing = await instance.isPlaying()
+      const currentTime = payload.mode === 'vod' ? await instance.getCurrentTime() : NaN
+      if (!active || player !== instance || activeUUID !== uuid ||
+          lastPayload !== payload) return
+      showSyncState(isProgrammeSynced(payload, uuid, currentTime, playing,
+        expectedOffset(), payload.mode === 'live' ? atLiveEdge() : true))
+    } catch {
+      if (player === instance && lastPayload === payload) showSyncState(false)
+    }
+  }
   async function attachPlayer (iframe, token) {
     const PlayerClass = await loadSDK()
     if (!PlayerClass || !active || playerToken !== token || !iframe.isConnected) return
@@ -326,19 +371,25 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       await instance.ready
       if (!active || playerToken !== token) return
       player = instance
-      await synchronizePlayer()
+      // Align a newly created player. Never re-seek an existing player on polls.
+      if (lastPayload?.mode === 'vod') await synchronizePlayer()
+      await refreshSyncControl()
     } catch { /* iframe may have been replaced before API initialization */ }
   }
   async function synchronizePlayer () {
-    if (!player || !lastPayload || lastPayload.mode !== 'vod') return
+    const instance = player
+    if (!instance || !lastPayload || lastPayload.mode !== 'vod') return
     const expected = expectedOffset()
     try {
-      const actual = await player.getCurrentTime()
+      const actual = await instance.getCurrentTime()
+      if (instance !== player) return
       if (Number.isFinite(actual) && Math.abs(actual - expected) > 3.5) {
-        await player.seek(expected)
+        await instance.seek(expected)
       }
       // Respect browser autoplay policies: if it cannot play, the viewer can press Play.
-      if (!(await player.isPlaying())) await player.play().catch(() => {})
+      if (instance === player && !(await instance.isPlaying())) {
+        await instance.play().catch(() => {})
+      }
     } catch { /* player not ready or navigation underway */ }
   }
   function setVideo (payload, force = false) {
@@ -347,6 +398,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
         className: 'lt-placeholder', textContent: uiText("Δεν υπάρχουν διαθέσιμα βίντεο.", "No available videos.")
       }))
       activeUUID = null; player = null
+      showSyncState(false, false)
       return
     }
     if (!force && payload.current.uuid === activeUUID && (payload.mode === 'live') === isLive) return
@@ -367,6 +419,11 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     videoEl.replaceChildren(iframe)
     void attachPlayer(iframe, token)
   }
+  syncBtn.addEventListener('click', () => {
+    syncRequested = true
+    syncBtn.disabled = true
+    void update()
+  })
   soundBtn.addEventListener('click', () => {
     // Never call setVideo() here: replacing the iframe reloads the video.
     if (enableSoundInEmbed(videoEl, soundBtn)) soundEnabled = true
@@ -469,6 +526,10 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       if (!response.ok) throw new Error('HTTP ' + response.status)
       const payload = await response.json()
       if (!active || !rootEl.isConnected) return
+      const manualSync = syncRequested
+      syncRequested = false
+      const reloadLive = manualSync && payload.mode === 'live' &&
+        payload.current?.uuid === activeUUID && isLive
       lastPayload = payload
       lastReceived = performance.now()
       text(titleEl, payload.title || 'Linear TV')
@@ -478,15 +539,26 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       text(currentMetaEl, payload.mode === 'live' ? uiText("Ζωντανή μετάδοση", "Live broadcast")
         : payload.interstitial ? `${uiText('Ενδιάμεσο σποτ · έως ', 'Interstitial spot · until ')}${clock(payload.endsAt)}`
           : payload.mode === 'vod' ? `${uiText('Έως ', 'Until ')}${clock(payload.endsAt)} · ${payload.current.channelName}` : '')
-      setVideo(payload)
+      setVideo(payload, reloadLive)
+      // An explicit sync always consults the latest server status. For a VOD
+      // it seeks/plays the current programme; for a live it reloads at the
+      // stream edge. Routine polling never undoes the viewer's pause/seek.
+      if (manualSync && payload.mode === 'vod') {
+        if (player) await synchronizePlayer()
+        else if (payload.current && !reloadLive) setVideo(payload, true)
+      }
       scheduleBoundaryUpdate(payload)
       renderSchedule(payload)
       updateChat(payload.chatAnchor)
       text(statusEl, payload.healthy ? '' : uiText("Προσωρινό πρόβλημα ενημέρωσης πηγών. Εμφανίζεται το τελευταίο διαθέσιμο πρόγραμμα.", "Source update temporarily unavailable. Showing the last known programme."))
-      await synchronizePlayer()
+      await refreshSyncControl()
     } catch {
       text(statusEl, uiText("Δεν ήταν δυνατή η ανάκτηση του προγράμματος. Νέα προσπάθεια αυτόματα.", "Unable to retrieve the programme. Retrying automatically."))
-    } finally { requestBusy = false }
+      syncBtn.disabled = false
+    } finally {
+      requestBusy = false
+      if (syncRequested && active) void update()
+    }
   }
   void update()
   tickTimer = setInterval(() => {
@@ -501,4 +573,4 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     void update()
   }, 5000)
 }
-export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, uiText, generateEmbedCode, generateHomepageTag }
+export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, isProgrammeSynced, uiText, generateEmbedCode, generateHomepageTag }
