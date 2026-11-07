@@ -233,7 +233,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
           <div class="lt-player-actions">
             <button type="button" class="lt-sound" id="lt-sound">${uiText("Ενεργοποίηση ήχου", "Enable sound")}</button>
             <button type="button" class="lt-chat-toggle" id="lt-chat-toggle" aria-controls="lt-chat" aria-expanded="true">${uiText("Απόκρυψη συνομιλίας", "Hide chat")}</button>
-            <button type="button" class="lt-embed-toggle" id="lt-embed-toggle" aria-controls="lt-embed-panel" aria-expanded="false">${uiText("Ενσωμάτωση", "Embed")}</button>
+            ${embedded ? '' : `<button type="button" class="lt-embed-toggle" id="lt-embed-toggle" aria-controls="lt-embed-panel" aria-expanded="false">${uiText("Ενσωμάτωση", "Embed")}</button>`}
           </div>
           <section id="lt-embed-panel" class="lt-embed-panel" hidden>
             <label for="lt-embed-code">${uiText("Κώδικας ενσωμάτωσης", "Embed code")}</label>

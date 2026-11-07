@@ -2,7 +2,7 @@
 
 A shared, television-style player for a PeerTube instance. Linear TV schedules publicly available videos from an account or selected channels, switches to active livestreams, and shows the next programmes in an electronic programme guide (EPG). It also offers a configurable administrator programme panel, optional interstitial spots, persistent live chat and an embeddable player.
 
-**Version:** 0.2.9 · **PeerTube:** 8.2+ · **Node.js:** 22+ · **License:** GPL-3.0-only
+**Version:** 0.2.10 · **PeerTube:** 8.2+ · **Node.js:** 22+ · **License:** GPL-3.0-only
 
 ## Features
 
@@ -55,7 +55,7 @@ In **Administration → Settings → Configuration → Homepage** (custom homepa
 <peertube-container data-linear-tv="true"></peertube-container>
 ```
 
-The plugin recognizes this built-in, sanitizer-allowed PeerTube tag by its `data-linear-tv` attribute and mounts the existing responsive TV iframe, with live chat and EPG. PeerTube does not expose a plugin API to register new custom tag names, so an arbitrary `<peertube-linear-tv>` element would be removed by PeerTube's markup sanitizer. The same snippet is available from **Watch → Embed → PeerTube homepage tag**.
+The plugin recognizes this built-in, sanitizer-allowed PeerTube tag by its `data-linear-tv` attribute and mounts the existing responsive TV iframe, with live chat and EPG. PeerTube does not expose a plugin API to register new custom tag names, so an arbitrary `<peertube-linear-tv>` element would be removed by PeerTube's markup sanitizer. The same snippet is available from **Watch → Embed → PeerTube homepage tag**. The Embed button is available on the native Watch page but hidden in standalone and homepage embedded views.
 
 ## Embed example
 
