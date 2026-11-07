@@ -202,6 +202,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   let active = true
   let requestBusy = false
   let tickTimer = null
+  let boundaryTimer = null
   let lastPayload = null
   let lastReceived = 0
 
@@ -328,6 +329,15 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     iframe.src = '/plugins/livechat/router/webchat/room/' + encodeURIComponent(anchor)
     chatBody.replaceChildren(iframe)
   }
+  function scheduleBoundaryUpdate (payload) {
+    clearTimeout(boundaryTimer)
+    boundaryTimer = null
+    if (payload.mode !== 'vod' || !Number.isFinite(payload.endsAt)) return
+    // Supplement the ordinary 5-second health poll with an on-boundary poll,
+    // so short consecutive spots are not skipped between regular polls.
+    const delay = Math.max(150, payload.endsAt - payload.serverTime + 100)
+    boundaryTimer = setTimeout(() => { void update() }, delay)
+  }
   async function update () {
     if (!active || requestBusy) return
     requestBusy = true
@@ -346,6 +356,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
         : payload.interstitial ? `Ενδιάμεσο σποτ · έως ${clock(payload.endsAt)}`
           : payload.mode === 'vod' ? `Έως ${clock(payload.endsAt)} · ${payload.current.channelName}` : '')
       setVideo(payload)
+      scheduleBoundaryUpdate(payload)
       renderSchedule(payload)
       updateChat(payload.chatAnchor)
       text(statusEl, payload.healthy ? '' : 'Προσωρινό πρόβλημα ενημέρωσης πηγών. Εμφανίζεται το τελευταίο διαθέσιμο πρόγραμμα.')
@@ -359,6 +370,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     if (!rootEl.isConnected) {
       active = false
       clearInterval(tickTimer)
+      clearTimeout(boundaryTimer)
       chatResizeObserver?.disconnect()
       window.removeEventListener?.('resize', resizeChat)
       return
