@@ -163,7 +163,8 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
   }
   async function validateActivePlaylist (now) {
     const p = programming.ensureProgramming(state)
-    if (p.active.type !== 'playlist' || state.live || p.cyclePlan) return false
+    if (p.active.type !== 'playlist' || state.live || p.cyclePlan ||
+        (state.returnSpot && now < state.returnSpot.endsAt)) return false
     const current = timeline.currentVod(state, now)
     const candidates = state.queue.slice(current?.index || 0)
     const valid = await validateAvailable(candidates)
@@ -263,7 +264,12 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
       if (vod || !state.queue.length || (state.live && activeLives.length === 0)) {
         const candidates = (await listSources(false)).filter(timeline.isPlayableVod).slice(0, config.limit)
         changed = programming.updateAuto(state, candidates) || changed
-        if (p.active.type === 'auto') {
+        // During the one-spot live return, hold the interrupted VOD's
+        // resume anchor stable until the spot has finished.
+        const returning = state.returnSpot && now < state.returnSpot.endsAt
+        if (returning) {
+          // The updated auto library is retained for the next normal refresh.
+        } else if (p.active.type === 'auto') {
           if (p.cyclePlan && state.live) {
             changed = programming.mergeDuringLive(state, candidates) || changed
           } else if (p.cyclePlan && !state.live) {
@@ -304,7 +310,7 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
         } else if (state.live) {
           changed = programming.mergeDuringLive(state, candidates) || changed
         }
-        if (!state.live && p.active.type === 'auto') {
+        if (!returning && !state.live && p.active.type === 'auto') {
           if (p.endsAt !== null) p.endsAt = programming.calculateEnd(state, now, !p.cyclePlan)
           else if (p.pending.length && state.queue.length) {
             p.endsAt = programming.calculateEnd(state, now)
