@@ -20,6 +20,16 @@ function mountProgramme (rootEl, peertubeHelpers) {
             <p id="lt-admin-current-search-message"></p>
             <div id="lt-admin-current-results" class="lt-admin-library"></div>
             <button type="button" id="lt-admin-order-save" disabled>Αποθήκευση αλλαγών playlist</button></section>
+          <section class="lt-admin-card"><h2>Ενδιάμεσα σποτ</h2>
+            <p>Τα σποτ παίζουν με τη σειρά τους μετά από κάθε βίντεο, πριν από το επόμενο,
+              καθώς και αμέσως μετά το τέλος του live. Δέχονται δημόσια ή μη καταχωρισμένα
+              (unlisted) PeerTube βίντεο. Δεν αποτελούν μέρος των κανονικών playlists.</p>
+            <ol id="lt-admin-spots" class="lt-admin-queue"></ol>
+            <label for="lt-admin-spot-input">UUID ή σύνδεσμος PeerTube σποτ</label>
+            <input id="lt-admin-spot-input" placeholder="https://video.omniatv.com/w/UUID">
+            <button type="button" id="lt-admin-spot-add">Προσθήκη σποτ</button>
+            <p id="lt-admin-spots-message" role="status"></p>
+            <button type="button" id="lt-admin-spots-save" disabled>Αποθήκευση σποτ</button></section>
           <section class="lt-admin-card"><h2>Επόμενες TV playlists</h2>
             <p>Ξεκινούν διαδοχικά, μόλις ολοκληρωθεί η τρέχουσα playlist.</p>
             <ol id="lt-admin-scheduled" class="lt-admin-queue"></ol>
@@ -47,7 +57,10 @@ function mountProgramme (rootEl, peertubeHelpers) {
         scheduled: $('#lt-admin-scheduled'), scheduledSave: $('#lt-admin-scheduled-save'),
         saved: $('#lt-admin-saved'), library: $('#lt-admin-results'), draft: $('#lt-admin-draft'),
         search: $('#lt-admin-search'), searchMessage: $('#lt-admin-search-message'),
-        name: $('#lt-admin-name'), create: $('#lt-admin-create')
+        name: $('#lt-admin-name'), create: $('#lt-admin-create'),
+        spots: $('#lt-admin-spots'), spotInput: $('#lt-admin-spot-input'),
+        spotAdd: $('#lt-admin-spot-add'), spotsSave: $('#lt-admin-spots-save'),
+        spotsMessage: $('#lt-admin-spots-message')
       }
       let data = null
       let cycleOrder = []
@@ -58,6 +71,9 @@ function mountProgramme (rootEl, peertubeHelpers) {
       let library = []
       let isDirty = false
       let scheduledDirty = false
+      let spotsDirty = false
+      let spotOrder = []
+      let spotLookup = new Map()
       let active = true
       let searchTimer
       const stamp = ts => ts === null || !Number.isFinite(ts) ? 'Μετά το live / υπό υπολογισμό'
@@ -130,6 +146,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
           data = result
           isDirty = false
           scheduledDirty = false
+          spotsDirty = false
           notice('Αποθηκεύτηκε. Η αναπαραγωγή συνεχίζεται χωρίς επανεκκίνηση.')
           render()
           return true
@@ -187,6 +204,19 @@ function mountProgramme (rootEl, peertubeHelpers) {
           els.currentResults.appendChild(row)
         }
       }
+      function renderSpots () {
+        const items = spotOrder.map(uuid => spotLookup.get(uuid)).filter(Boolean)
+        buildOrderList(els.spots, items, (from, to) => {
+          if (move(spotOrder, from, to)) { spotsDirty = true; renderSpots() }
+        }, {
+          remove: (_, index) => { spotOrder.splice(index, 1); spotsDirty = true; renderSpots() }
+        })
+        if (!items.length) els.spots.appendChild(textNode('li', 'Δεν έχουν οριστεί ενδιάμεσα σποτ.'))
+        els.spotsSave.disabled = !spotsDirty || data.interstitial
+        els.spotsMessage.textContent = data.interstitial
+          ? 'Παίζει σποτ. Η αλλαγή επιτρέπεται μόλις ολοκληρωθεί.'
+          : items.length + ' σποτ · διάρκεια διαλείμματος: ' + duration(items) + '′'
+      }
       function renderScheduled () {
         const map = new Map(data.pending.map(x => [x.id, x]))
         const items = pendingOrder.map(id => map.get(id)).filter(Boolean)
@@ -237,15 +267,19 @@ function mountProgramme (rootEl, peertubeHelpers) {
       }
       function render () {
         if (!data) return
-        els.current.textContent = data.current?.name || 'Χωρίς πρόγραμμα'
-        els.active.textContent = `${data.active.name} · ${data.live ? 'LIVE' : 'VOD'}${data.currentEndsAt === null ? '' : ' · ολοκλήρωση: ' + stamp(data.currentEndsAt)}`
+        els.current.textContent = (data.interstitial ? 'Σποτ · ' : '') + (data.current?.name || 'Χωρίς πρόγραμμα')
+        els.active.textContent = `${data.active.name} · ${data.live ? 'LIVE' : data.interstitial ? 'SPOT' : 'VOD'}${data.currentEndsAt === null ? '' : ' · ολοκλήρωση: ' + stamp(data.currentEndsAt)}`
         if (!isDirty) {
           const items = data.cycle?.items || data.upcoming
           cycleOrder = items.map(x => x.uuid)
           cycleLookup = new Map(items.map(x => [x.uuid, x]))
         }
         if (!scheduledDirty) pendingOrder = data.pending.map(x => x.id)
-        renderQueue(); renderScheduled(); renderSaved(); renderDraft()
+        if (!spotsDirty) {
+          spotOrder = (data.spots || []).map(x => x.uuid)
+          spotLookup = new Map((data.spots || []).map(x => [x.uuid, x]))
+        }
+        renderQueue(); renderSpots(); renderScheduled(); renderSaved(); renderDraft()
       }
       async function reload () {
         try {
@@ -267,6 +301,26 @@ function mountProgramme (rootEl, peertubeHelpers) {
           renderLibrary()
         } catch (err) { els.searchMessage.textContent = 'Σφάλμα αναζήτησης: ' + err.message }
       }
+      function addSpotInput () {
+        const input = els.spotInput.value.trim()
+        const found = input.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)
+        if (!found) { els.spotsMessage.textContent = 'Χρειάζεται πλήρες UUID βίντεο.'; return }
+        const uuid = found[0].toLowerCase()
+        if (spotOrder.includes(uuid)) { els.spotsMessage.textContent = 'Το σποτ υπάρχει ήδη.'; return }
+        if (spotOrder.length >= 20) { els.spotsMessage.textContent = 'Μέγιστο 20 σποτ.'; return }
+        spotOrder.push(uuid)
+        spotLookup.set(uuid, { uuid, name: 'Νέο σποτ · ' + uuid, duration: 0 })
+        els.spotInput.value = ''
+        spotsDirty = true
+        renderSpots()
+      }
+      els.spotAdd.addEventListener('click', addSpotInput)
+      els.spotInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); addSpotInput() }
+      })
+      els.spotsSave.addEventListener('click', () => {
+        void mutate('/spots', 'PUT', { uuids: spotOrder })
+      })
       els.queueSave.addEventListener('click', () => { void mutate('/cycle', 'PUT', { uuids: cycleOrder }) })
       els.scheduledSave.addEventListener('click', () => { void mutate('/schedule', 'PUT', { ids: pendingOrder }) })
       els.name.addEventListener('input', renderDraft)
@@ -295,7 +349,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
       void reload().then(() => { void search(); void searchForCurrent() })
       const timer = setInterval(() => {
         if (!rootEl.isConnected) { active = false; clearTimeout(searchTimer); clearTimeout(currentSearchTimer); clearInterval(timer); return }
-        if (!isDirty && !scheduledDirty) void reload()
+        if (!isDirty && !scheduledDirty && !spotsDirty) void reload()
       }, 15000)
   return () => {
     active = false
