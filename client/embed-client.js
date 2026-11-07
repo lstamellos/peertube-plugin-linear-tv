@@ -2,7 +2,8 @@
 
 import { mountLinearTV } from './common-client-plugin.js'
 
-// The server supplies version-aware routes using PeerTube's plugin helpers.
+// The server supplies version-aware routes and the explicitly allowed parent
+// origins. The CSP frame-ancestors directive independently enforces the list.
 const rootEl = document.getElementById('lt-embed-root')
 if (rootEl) {
   mountLinearTV(rootEl, {
@@ -11,16 +12,20 @@ if (rootEl) {
     embedded: true
   })
 
-  // Resizing never rebuilds the player or chat. The parent page accepts only
-  // messages from the matching PeerTube origin and from its own iframe.
-  const origins = ['https://omniatv.com', 'https://www.omniatv.com', 'https://video.omniatv.com']
+  let configured = []
+  try { configured = JSON.parse(rootEl.dataset.allowedOrigins || '[]') } catch { /* self only */ }
+  const origins = [...new Set([window.location.origin,
+    ...(Array.isArray(configured) ? configured.filter(origin => {
+      try {
+        const parsed = new URL(origin)
+        return ['http:', 'https:'].includes(parsed.protocol) && parsed.origin === origin
+      } catch { return false }
+    }) : [])])]
   let lastHeight = -1
   let scheduled = false
   function reportHeight () {
     scheduled = false
-    // Measure actual content, not documentElement.scrollHeight: the latter
-    // includes the iframe's current viewport and prevents shrinking a tall
-    // initial placeholder height after the programme has loaded.
+    // The iframe's viewport height is not its content height.
     const height = Math.ceil(rootEl.getBoundingClientRect().bottom + 4)
     if (!Number.isFinite(height) || height < 200 || height === lastHeight) return
     lastHeight = height

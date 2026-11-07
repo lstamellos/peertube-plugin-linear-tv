@@ -4,7 +4,7 @@ const assert = require('node:assert/strict')
 const { readFileSync } = require('node:fs')
 const { join } = require('node:path')
 const plugin = require('../main')
-const { renderEmbedPage, FRAME_ANCESTORS } = require('../lib/embed')
+const { renderEmbedPage, FRAME_ANCESTORS, parseEmbedOrigins, frameAncestors } = require('../lib/embed')
 const root = join(__dirname, '..')
 
 const client = readFileSync(join(root, 'client/common-client-plugin.js'), 'utf8')
@@ -23,8 +23,8 @@ test('a standalone embed route reuses version-aware plugin assets and restricts 
       peertubeHelpers: {
         logger: { warn () {} },
         plugin: {
-          getBaseRouterRoute: () => '/plugins/linear-tv/0.2.6/router',
-          getBaseStaticRoute: () => '/plugins/linear-tv/0.2.6/static'
+          getBaseRouterRoute: () => '/plugins/linear-tv/0.2.7/router',
+          getBaseStaticRoute: () => '/plugins/linear-tv/0.2.7/static'
         }
       }
     })
@@ -36,21 +36,21 @@ test('a standalone embed route reuses version-aware plugin assets and restricts 
       status (code) { this.code = code; return this },
       send (body) { this.body = body; return this }
     }
-    routes['/embed']({ baseUrl: '/plugins/linear-tv/0.2.6/router' }, res)
+    routes['/embed']({ baseUrl: '/plugins/linear-tv/0.2.7/router' }, res)
     assert.equal(res.code, 200)
     assert.equal(headers['Content-Type'], 'text/html; charset=utf-8')
     assert.equal(headers['X-Frame-Options'], undefined)
     assert.equal(headers['Cache-Control'], 'no-store, max-age=0')
     assert.equal(headers['Content-Security-Policy'], FRAME_ANCESTORS)
     assert.match(res.body, /id="lt-embed-root"/)
-    assert.match(res.body, /data-router-base="\/plugins\/linear-tv\/0\.2\.6\/router"/)
+    assert.match(res.body, /data-router-base="\/plugins\/linear-tv\/0\.2\.7\/router"/)
     assert.match(res.body, /static\/tv-assets\/linear-tv\.css/)
     assert.match(res.body, /static\/tv-assets\/embed\.css/)
     assert.match(res.body, /static\/tv-assets\/embed-client\.js/)
     assert.doesNotMatch(res.body, /<script(?![^>]*src=)[^>]*>/i, 'no inline scripts on embed route')
     assert.doesNotMatch(res.body, /<iframe/, 'the TV app must own the single video iframe')
     headers['Content-Security-Policy'] = "default-src 'self'; frame-ancestors 'none'; script-src 'self'"
-    routes['/embed']({ baseUrl: '/plugins/linear-tv/0.2.6/router' }, res)
+    routes['/embed']({ baseUrl: '/plugins/linear-tv/0.2.7/router' }, res)
     assert.equal(headers['Content-Security-Policy'], "default-src 'self'; script-src 'self'; " + FRAME_ANCESTORS)
   } finally { await plugin.unregister() }
 })
@@ -62,9 +62,31 @@ test('embed html escapes all route attributes', () => {
   assert.doesNotMatch(html, /" onload="alert/)
 })
 
+test('embed parent allowlist accepts portable HTTP(S) origins and blocks unsafe input', () => {
+  assert.deepEqual(parseEmbedOrigins('https://www.example.org, https://media.example.net:8443/ https://www.example.org'),
+    ['https://www.example.org', 'https://media.example.net:8443'])
+  assert.equal(frameAncestors(parseEmbedOrigins('https://www.example.org')),
+    "frame-ancestors 'self' https://www.example.org")
+  assert.equal(frameAncestors(parseEmbedOrigins('')), FRAME_ANCESTORS)
+  for (const unsafe of [
+    'javascript:alert(1)', 'https://example.org/path', 'https://user:pass@example.org',
+    'https://example.org/?a=1', 'https://example.org/#hash', "'self'; default-src *"
+  ]) assert.throws(() => parseEmbedOrigins(unsafe), /origin|HTTP|Invalid/i)
+  assert.throws(() => parseEmbedOrigins(Array.from({ length: 21 }, (_, i) =>
+    `https://site${i}.example.org`).join(',')), /At most 20/)
+  const html = renderEmbedPage({
+    routerBase: '/plugins/linear-tv/router',
+    staticBase: '/plugins/linear-tv/static',
+    allowedOrigins: parseEmbedOrigins('https://www.example.org')
+  })
+  assert.match(html, /data-allowed-origins="\[&quot;https:\/\/www\.example\.org&quot;\]"/)
+  assert.match(html, /<title>Linear TV<\/title>/)
+  assert.doesNotMatch(html, /omniatv/i)
+})
+
 test('plugin packaging serves reusable client module and embed stylesheet', () => {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-  assert.equal(pkg.version, '0.2.6')
+  assert.equal(pkg.version, '0.2.7')
   assert.equal(pkg.license, 'GPL-3.0-only')
   assert.equal(pkg.staticDirs['tv-assets'], 'client')
   assert.match(embedClient, /import\s*\{\s*mountLinearTV\s*\}\s*from\s*'\.\/common-client-plugin\.js'/)
@@ -78,7 +100,21 @@ test('plugin packaging serves reusable client module and embed stylesheet', () =
   assert.match(readFileSync(join(root, 'client/embed.css'), 'utf8'), /\.lt-epg ol\s*\{[^}]*max-height:/)
 })
 
-test('chat sizing inside WordPress iframe follows the player, not iframe viewport height', async () => {
+test('the complete upcoming EPG is hidden during live and restored on the next VOD status', async () => {
+  const { setProgrammeVisibility } = await loadClient()
+  const panel = { hidden: false }
+  assert.equal(setProgrammeVisibility(panel, 'vod'), true)
+  assert.equal(panel.hidden, false)
+  assert.equal(setProgrammeVisibility(panel, 'live'), false)
+  assert.equal(panel.hidden, true)
+  assert.equal(setProgrammeVisibility(panel, 'vod'), true)
+  assert.equal(panel.hidden, false)
+  assert.match(client, /listEl\.replaceChildren\(\)[\s\S]*?setProgrammeVisibility\(schedulePanel, payload\.mode\)/)
+  assert.match(readFileSync(join(root, 'client/linear-tv.css'), 'utf8'),
+    /\.lt-epg\[hidden\]\s*\{\s*display:\s*none\s*!important;/)
+})
+
+test('chat sizing inside an external iframe follows the player, not iframe viewport height', async () => {
   const { fitChatToPlayer } = await loadClient()
   const video = { getBoundingClientRect () { return { height: 320 } } }
   const chat = { hidden: false, style: {}, getBoundingClientRect () { return { top: 250 } } }

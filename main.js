@@ -2,7 +2,7 @@
 
 const timeline = require('./lib/schedule')
 const programming = require('./lib/programming')
-const { FRAME_ANCESTORS, renderEmbedPage } = require('./lib/embed')
+const { parseEmbedOrigins, frameAncestors, renderEmbedPage } = require('./lib/embed')
 const { randomUUID } = require('node:crypto')
 const STORAGE_KEY = 'linear-tv-state-v1'
 const MAX_RESULTS = 100
@@ -19,7 +19,8 @@ function parseSettings (values) {
     account, channels,
     limit: Math.min(100, Math.max(1, Number.parseInt(values['video-limit'], 10) || 30)),
     chatAnchor: String(values['chat-anchor-uuid'] || '').trim(),
-    title: String(values['page-title'] || 'Linear TV').slice(0, 80)
+    title: String(values['page-title'] || 'Linear TV').slice(0, 80),
+    embedOrigins: parseEmbedOrigins(values['embed-allowed-origins'])
   }
 }
 
@@ -32,13 +33,15 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
   registerSetting({ name: 'video-limit', label: 'Number of newest VODs (1–100)',
     type: 'input', default: '30' })
   registerSetting({ name: 'page-title', label: 'TV page title', type: 'input', default: 'Linear TV' })
-  registerSetting({ name: 'programme-panel', type: 'html', html: '<p><a href="/admin/settings/config/general?tv-programme=1" target="_blank" rel="noopener">Άνοιγμα panel προγραμματισμού TV ↗</a></p>' })
+  registerSetting({ name: 'programme-panel', type: 'html', html: '<p><a href="/admin/settings/config/general?tv-programme=1" target="_blank" rel="noopener">Open TV programme panel ↗</a></p>' })
+  registerSetting({ name: 'embed-allowed-origins', label: 'Allowed external embed origins (optional)', type: 'input',
+    descriptionHTML: 'Comma-separated HTTP(S) origins, e.g. https://www.example.org (no path). Empty allows same-origin embeds only. Up to 20 origins.', default: '' })
   registerSetting({ name: 'chat-anchor-uuid', label: 'Permanent chat anchor video UUID', type: 'input',
     descriptionHTML: 'Install peertube-plugin-livechat and enable chat on this video. Its chat room remains constant when playback switches.', default: '' })
 
   let state = timeline.createState()
   programming.ensureProgramming(state)
-  let config = { account: '', channels: [], limit: 30, chatAnchor: '', title: 'Linear TV' }
+  let config = { account: '', channels: [], limit: 30, chatAnchor: '', title: 'Linear TV', embedOrigins: [] }
   let running = false
   let started = false
   let lastError = null
@@ -47,10 +50,10 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
   let pending = false
 
   async function readConfig () { config = parseSettings(await settingsManager.getSettings([
-    'source-account', 'source-channels', 'video-limit', 'chat-anchor-uuid', 'page-title'
+    'source-account', 'source-channels', 'video-limit', 'chat-anchor-uuid', 'page-title', 'embed-allowed-origins'
   ])) }
 
-  // Avoid routing self-calls via public reverse proxy / WAF (Cloudflare).
+  // Use the local listening API rather than the public reverse proxy.
   function apiBase () {
     const listening = peertubeHelpers.config.getServerListeningConfig()
     const hostname = listening.hostname === '::' || listening.hostname === '0.0.0.0'
@@ -101,6 +104,30 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
     return result
   }
 
+  async function resolveSpot (uuid) {
+    if (!/^[0-9a-f-]{36}$/i.test(uuid)) throw new Error('Invalid spot UUID')
+    // Direct UUID lookup supports unlisted privacy; public source search does not.
+    const response = await fetch(new URL('/api/v1/videos/' + encodeURIComponent(uuid), apiBase()),
+      { signal: AbortSignal.timeout(7000) })
+    if (!response.ok) throw new Error((response.status >= 500 ? 'PeerTube API failure: ' : 'Spot not accessible: ') + uuid)
+    const result = timeline.normalizeSpot(await response.json())
+    if (!result) throw new Error('Spot must be a published, playable public or unlisted VOD: ' + uuid)
+    return result
+  }
+  async function resolveAvailableSpot (uuid) {
+    try { return await resolveSpot(uuid) }
+    catch (err) {
+      if (/Spot not accessible:|Spot must be a published/.test(String(err.message))) return null
+      throw err
+    }
+  }
+  async function validateAvailableSpots (items) {
+    const result = []
+    for (let i = 0; i < items.length; i += 5) {
+      result.push(...(await Promise.all(items.slice(i, i + 5).map(v => resolveAvailableSpot(v.uuid)))).filter(Boolean))
+    }
+    return result
+  }
   async function resolveAvailable (uuid) {
     try { return await resolveVideo(uuid) }
     catch (err) {
@@ -139,7 +166,8 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
   }
   async function validateActivePlaylist (now) {
     const p = programming.ensureProgramming(state)
-    if (p.active.type !== 'playlist' || state.live || p.cyclePlan) return false
+    if (p.active.type !== 'playlist' || state.live || p.cyclePlan ||
+        (state.returnSpot && now < state.returnSpot.endsAt)) return false
     const current = timeline.currentVod(state, now)
     const candidates = state.queue.slice(current?.index || 0)
     const valid = await validateAvailable(candidates)
@@ -159,6 +187,15 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
     // Limit concurrent loopback API calls.
     for (let i = 0; i < uuids.length; i += 5) {
       result.push(...await Promise.all(uuids.slice(i, i + 5).map(resolveVideo)))
+    }
+    return result
+  }
+  async function validateSpotVideos (uuids) {
+    if (!Array.isArray(uuids) || uuids.length > 20 ||
+        new Set(uuids).size !== uuids.length) throw new Error('Select at most 20 distinct spots')
+    const result = []
+    for (let i = 0; i < uuids.length; i += 5) {
+      result.push(...await Promise.all(uuids.slice(i, i + 5).map(resolveSpot)))
     }
     return result
   }
@@ -214,6 +251,15 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
       const now = Date.now()
       const p = programming.ensureProgramming(state)
       let changed = await crossBoundaries(now)
+      if (vod && Array.isArray(state.spots) && state.spots.length &&
+          !timeline.currentVod(state, now)?.spot) {
+        // Recheck availability/privacy without interrupting an airing spot.
+        const checked = await validateAvailableSpots(state.spots)
+        if (JSON.stringify(checked) !== JSON.stringify(state.spots)) {
+          programming.setSpots(state, checked, now)
+          changed = true
+        }
+      }
       // Do not infer 'live' from isLive alone: state 4 is WAITING_FOR_LIVE, 5 is LIVE_ENDED.
       const activeLives = (await listSources(true)).filter(timeline.isActiveLive)
       // Refresh VODs BEFORE concluding a live: catch publications that arrived
@@ -221,7 +267,12 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
       if (vod || !state.queue.length || (state.live && activeLives.length === 0)) {
         const candidates = (await listSources(false)).filter(timeline.isPlayableVod).slice(0, config.limit)
         changed = programming.updateAuto(state, candidates) || changed
-        if (p.active.type === 'auto') {
+        // During the one-spot live return, hold the interrupted VOD's
+        // resume anchor stable until the spot has finished.
+        const returning = state.returnSpot && now < state.returnSpot.endsAt
+        if (returning) {
+          // The updated auto library is retained for the next normal refresh.
+        } else if (p.active.type === 'auto') {
           if (p.cyclePlan && state.live) {
             changed = programming.mergeDuringLive(state, candidates) || changed
           } else if (p.cyclePlan && !state.live) {
@@ -262,7 +313,7 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
         } else if (state.live) {
           changed = programming.mergeDuringLive(state, candidates) || changed
         }
-        if (!state.live && p.active.type === 'auto') {
+        if (!returning && !state.live && p.active.type === 'auto') {
           if (p.endsAt !== null) p.endsAt = programming.calculateEnd(state, now, !p.cyclePlan)
           else if (p.pending.length && state.queue.length) {
             p.endsAt = programming.calculateEnd(state, now)
@@ -295,7 +346,7 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
   }
 
   const router = getRouter()
-  // Public, chrome-free HTML page: one iframe on WordPress contains the same
+  // Public, chrome-free HTML page: an external iframe contains the same
   // player, permanent livechat and upcoming EPG as the internal /p/tv route.
   router.get('/embed', (req, res) => {
     const routerBase = peertubeHelpers.plugin?.getBaseRouterRoute?.() ||
@@ -312,10 +363,11 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
     // conflicting policies that could unexpectedly prevent the iframe.
     const priorCsp = String(res.getHeader?.('Content-Security-Policy') || '')
       .replace(/(?:^|;)\s*frame-ancestors\s+[^;]*/gi, '').replace(/^;+|;+$/g, '').trim()
-    res.setHeader('Content-Security-Policy', [priorCsp, FRAME_ANCESTORS].filter(Boolean).join('; '))
+    res.setHeader('Content-Security-Policy', [priorCsp, frameAncestors(config.embedOrigins)].filter(Boolean).join('; '))
     res.setHeader('Cache-Control', 'no-store, max-age=0')
     res.setHeader('X-Content-Type-Options', 'nosniff')
-    res.status(200).send(renderEmbedPage({ routerBase, staticBase }))
+    const language = /^el(?:[-_,;]|$)/i.test(String(req.headers?.['accept-language'] || '')) ? 'el' : 'en'
+    res.status(200).send(renderEmbedPage({ routerBase, staticBase, allowedOrigins: config.embedOrigins, language }))
   })
   router.get('/status', (req, res) => {
     res.setHeader('Cache-Control', 'no-store, max-age=0')
@@ -339,6 +391,10 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
       res.json({ items: items.filter(timeline.isPlayableVod).slice(0, 100) })
     } catch (err) { problem(res, err) }
   })
+  router.put('/admin/spots', (req, res) => adminMutation(req, res, async body => {
+    const items = await validateSpotVideos(body.uuids)
+    programming.setSpots(state, items, Date.now())
+  }))
   router.post('/admin/playlists', (req, res) => adminMutation(req, res, async body => {
     const items = await validateVideos(body.uuids)
     programming.addPlaylist(state, { id: randomUUID(), name: body.name, items })
@@ -412,12 +468,23 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
     registerHook({ target, handler: () => { void refresh({ vod: true }) } })
   }
   settingsManager.onSettingsChange(async () => {
-    await readConfig()
-    // Force new queue on configuration changes, but don't play past videos in old channel.
+    const previousConfig = config
+    try { await readConfig() } catch (err) {
+      logger.warn('[linear-tv] invalid settings: ' + err.message)
+      return
+    }
+    // Changes to title, chat anchor or embed origins must not reset playback.
+    const sourcesChanged = previousConfig.account !== config.account ||
+      JSON.stringify(previousConfig.channels) !== JSON.stringify(config.channels) ||
+      previousConfig.limit !== config.limit
+    if (!sourcesChanged) return
+    // Force a new queue only when the programme sources change.
     const p = programming.ensureProgramming(state)
+    const spots = state.spots || []
     state = timeline.createState()
+    state.spots = spots
     state.programming = p
-    p.active = { type: 'auto', name: 'Αυτόματο πρόγραμμα' }
+    p.active = { type: 'auto', name: 'Automatic programme' }
     p.endsAt = null
     p.manualOrder = false
     p.cyclePlan = null // Source/settings reset starts a fresh automatic cycle.
