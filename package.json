@@ -1,6 +1,6 @@
 {
   "name": "peertube-plugin-linear-tv",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Synchronized linear TV, EPG, live preemption and instance-settings scheduling panel",
   "license": "GPL-3.0-only",
   "author": "OmniaTV contributors",
@@ -33,14 +33,15 @@
     "client/linear-tv.css"
   ],
   "staticDirs": {
-    "embed-api": "node_modules/@peertube/embed-api/build"
+    "embed-api": "node_modules/@peertube/embed-api/build",
+    "tv-assets": "client"
   },
   "dependencies": {
     "@peertube/embed-api": "^0.2.0"
   },
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check main.js && node --check lib/schedule.js && node --check client/common-client-plugin.js && node --check lib/programming.js && node --check client/programme-client-plugin.js && node --check tests/settings-tab.test.js && node --check tests/watch-menu-links.test.js && node --check tests/chat-layout.test.js"
+    "check": "node --check main.js && node --check lib/schedule.js && node --check client/common-client-plugin.js && node --check lib/programming.js && node --check client/programme-client-plugin.js && node --check tests/settings-tab.test.js && node --check tests/watch-menu-links.test.js && node --check tests/chat-layout.test.js && node --check client/embed-client.js && node --check lib/embed.js"
   },
   "files": [
     "main.js",
@@ -51,8 +52,8 @@
     "tests",
     "languages"
   ],
-  "homepage": "",
-  "bugs": "",
+  "homepage": "https://github.com/lstamellos/peertube-plugin-linear-tv",
+  "bugs": "https://github.com/lstamellos/peertube-plugin-linear-tv/issues",
   "translations": {
     "el": "./languages/el.json"
   }

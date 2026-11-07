@@ -1,8 +1,64 @@
-# PeerTube Linear TV v0.2.5 — Watch action, chat and compact EPG
+# PeerTube Linear TV v0.2.6 — Embeddable TV page
 
 Creates a **shared 24/7 television-style channel** from a PeerTube account or chosen video channels. Visitors joining `/p/tv` watch the *same* programme item at its calculated time offset. The PeerTube sidebar includes **Watch** (**Δείτε** in Greek) under Quick access, and upcoming EPG entries provide an external-link button opening their individual `/w/<uuid>` watch page in a new tab without changing the shared stream. A running livestream immediately preempts VOD playback. When live ends, the programme starts a fresh VOD **from 00:00**: the next scheduled video after the interrupted one, or any new public videos published during the live (newest first). The electronic programme guide (EPG) is then recalculated.
 
-Designed for PeerTube **8.2.x and 8.3.x**, especially native installations using Node.js >=22. **The 0.2.4 chat layout and toggle have been verified in-browser. The 0.2.5 button styling has automated tests and still requires live browser verification after upgrade.**
+Designed for PeerTube **8.2.x and 8.3.x**, especially native installations using Node.js >=22. **Version 0.2.6 includes a standalone iframe embed; the PeerTube 8.3.2 route and the WordPress iframe were smoke-tested on a test copy of the OmniaTV homepage.**
+
+## Changes in v0.2.6 — Embeddable TV page
+
+- A standalone public `GET /plugins/linear-tv/router/embed` page contains **the same** player, permanent livechat and upcoming EPG as `/p/tv`, without PeerTube's outer navigation. It does not create a second scheduler or a second player implementation.
+- The embed is allowed in iframes from `https://omniatv.com`, `https://www.omniatv.com` and the PeerTube host itself (`frame-ancestors`). It uses version-aware static assets, no inline JS and `Cache-Control: no-store` for the HTML document.
+- The iframe sends `linear-tv:resize` messages to the allowed parent origins whenever its content height changes. The parent **must validate** both the sender's origin and iframe `contentWindow`.
+- Chat stays next to the player on desktop and stacks underneath on mobile. The EPG is internally scrollable to keep the embed reasonably compact. The sound button still unmutes the existing video iframe without reloading the stream.
+- This release has no changes to the admin scheduling, EPG status endpoint or source selection.
+
+### WordPress embed
+
+Use a **Custom HTML** block or a site-specific shortcode that renders:
+
+```html
+<iframe
+  id="linear-tv-frame"
+  src="https://video.omniatv.com/plugins/linear-tv/router/embed"
+  title="OmniaTV Linear TV"
+  scrolling="no"
+  style="display:block;width:100%;height:900px;border:0;overflow:hidden"
+  allow="autoplay; fullscreen; picture-in-picture"
+  allowfullscreen>
+</iframe>
+
+<script>
+(() => {
+  const frame = document.getElementById('linear-tv-frame');
+
+  window.addEventListener('message', event => {
+    if (
+      event.origin !== 'https://video.omniatv.com' ||
+      event.source !== frame.contentWindow ||
+      event.data?.type !== 'linear-tv:resize'
+    ) return;
+
+    const height = Number(event.data.height);
+    if (Number.isFinite(height) && height >= 200 && height <= 4000) {
+      frame.style.height = `${height}px`;
+    }
+  });
+
+  frame.addEventListener('load', () => {
+    frame.contentWindow.postMessage(
+      { type: 'linear-tv:request-size' },
+      'https://video.omniatv.com'
+    );
+  });
+})();
+</script>
+```
+
+The iframe's own scrollbar is disabled; the «Προσεχώς» programme list and the chat retain their internal scrolling. The parent listens for `linear-tv:resize` and adjusts height without reloading playback. The code above was tested inside a WordPress Custom HTML block on a copy of the OmniaTV homepage.
+
+For WordPress deployments that strip `<script>` from blocks, put the resize listener in a small site-specific script/shortcode, **not** into the Linear TV client code. If a restrictive WordPress CSP is configured, allow the PeerTube origin under `frame-src`/`child-src`. Any reverse proxy `X-Frame-Options: SAMEORIGIN` must not be sent on the `/embed` route: browsers may reject cross-origin framing even with the plugin's `frame-ancestors` policy. The PeerTube page, status endpoint, embedded video and livechat room should all be reachable from the visitor's browser.
+
+**Authentication caveat:** the video and livechat run inside a cross-site iframe on WordPress. Browser third-party-cookie restrictions can affect PeerTube/livechat login and chat posting; verify anonymous chat, authenticated chat and moderation in actual browsers before rollout. Opening the standalone TV page on the PeerTube origin remains a fallback.
 
 ## Changes in v0.2.5 — Prominent video action in the EPG
 

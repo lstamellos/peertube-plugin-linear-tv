@@ -1,0 +1,18 @@
+/* Only the standalone Linear TV embed document uses these rules. */
+html, body { margin: 0; padding: 0; }
+body.lt-embed-document { background: #101820; color: #f3f5f7; font: 16px/1.45 system-ui, sans-serif; }
+body.lt-embed-document *, body.lt-embed-document *::before, body.lt-embed-document *::after { box-sizing: border-box; }
+body.lt-embed-document #linear-tv-app { margin: 0 auto; padding: .8rem .8rem 1rem; }
+body.lt-embed-document #linear-tv-app .lt-header { margin-bottom: .7rem; }
+body.lt-embed-document #linear-tv-app .lt-header h1 { font-size: clamp(1.1rem, 2vw, 1.5rem); }
+body.lt-embed-document #linear-tv-app .lt-layout { gap: .8rem; }
+body.lt-embed-document #linear-tv-app .lt-chat { border-color: #485b66; }
+body.lt-embed-document #linear-tv-app .lt-now { padding: .65rem 0; }
+body.lt-embed-document #linear-tv-app .lt-now h2 { font-size: 1.1rem; }
+body.lt-embed-document #linear-tv-app .lt-epg h2 { font-size: 1.05rem; margin: .35rem 0; }
+body.lt-embed-document #linear-tv-app .lt-epg ol { max-height: 340px; overflow-y: auto; }
+body.lt-embed-document #linear-tv-app .lt-player-actions button { font: inherit; font-size: .88rem; }
+body.lt-embed-document #linear-tv-app .lt-footer { margin: .3rem 0 0; }
+@media (max-width: 800px) {
+  body.lt-embed-document #linear-tv-app .lt-chat { height: 320px; }
+}

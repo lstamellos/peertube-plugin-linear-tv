@@ -2,6 +2,7 @@
 
 const timeline = require('./lib/schedule')
 const programming = require('./lib/programming')
+const { FRAME_ANCESTORS, renderEmbedPage } = require('./lib/embed')
 const { randomUUID } = require('node:crypto')
 const STORAGE_KEY = 'linear-tv-state-v1'
 const MAX_RESULTS = 100
@@ -294,6 +295,28 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
   }
 
   const router = getRouter()
+  // Public, chrome-free HTML page: one iframe on WordPress contains the same
+  // player, permanent livechat and upcoming EPG as the internal /p/tv route.
+  router.get('/embed', (req, res) => {
+    const routerBase = peertubeHelpers.plugin?.getBaseRouterRoute?.() ||
+      req.baseUrl || '/plugins/linear-tv/router'
+    const staticBase = peertubeHelpers.plugin?.getBaseStaticRoute?.() ||
+      routerBase.replace(/\/router\/?$/, '/static')
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    // Frame restrictions are controlled by CSP for this dedicated embed only.
+    // Remove app-level X-Frame-Options if present (reverse proxy headers still
+    // need to be checked on the final response).
+    res.removeHeader?.('X-Frame-Options')
+    // Preserve any PeerTube CSP directives already set on the response.
+    // Replace an existing frame-ancestors directive rather than emitting
+    // conflicting policies that could unexpectedly prevent the iframe.
+    const priorCsp = String(res.getHeader?.('Content-Security-Policy') || '')
+      .replace(/(?:^|;)\s*frame-ancestors\s+[^;]*/gi, '').replace(/^;+|;+$/g, '').trim()
+    res.setHeader('Content-Security-Policy', [priorCsp, FRAME_ANCESTORS].filter(Boolean).join('; '))
+    res.setHeader('Cache-Control', 'no-store, max-age=0')
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.status(200).send(renderEmbedPage({ routerBase, staticBase }))
+  })
   router.get('/status', (req, res) => {
     res.setHeader('Cache-Control', 'no-store, max-age=0')
     const result = programming.publicSchedule(state, timeline.status(state))
