@@ -101,6 +101,30 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
     return result
   }
 
+  async function resolveSpot (uuid) {
+    if (!/^[0-9a-f-]{36}$/i.test(uuid)) throw new Error('Invalid spot UUID')
+    // Direct UUID lookup supports unlisted privacy; public source search does not.
+    const response = await fetch(new URL('/api/v1/videos/' + encodeURIComponent(uuid), apiBase()),
+      { signal: AbortSignal.timeout(7000) })
+    if (!response.ok) throw new Error((response.status >= 500 ? 'PeerTube API failure: ' : 'Spot not accessible: ') + uuid)
+    const result = timeline.normalizeSpot(await response.json())
+    if (!result) throw new Error('Spot must be a published, playable public or unlisted VOD: ' + uuid)
+    return result
+  }
+  async function resolveAvailableSpot (uuid) {
+    try { return await resolveSpot(uuid) }
+    catch (err) {
+      if (/Spot not accessible:|Spot must be a published/.test(String(err.message))) return null
+      throw err
+    }
+  }
+  async function validateAvailableSpots (items) {
+    const result = []
+    for (let i = 0; i < items.length; i += 5) {
+      result.push(...(await Promise.all(items.slice(i, i + 5).map(v => resolveAvailableSpot(v.uuid)))).filter(Boolean))
+    }
+    return result
+  }
   async function resolveAvailable (uuid) {
     try { return await resolveVideo(uuid) }
     catch (err) {
@@ -162,6 +186,15 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
     }
     return result
   }
+  async function validateSpotVideos (uuids) {
+    if (!Array.isArray(uuids) || uuids.length > 20 ||
+        new Set(uuids).size !== uuids.length) throw new Error('Select at most 20 distinct spots')
+    const result = []
+    for (let i = 0; i < uuids.length; i += 5) {
+      result.push(...await Promise.all(uuids.slice(i, i + 5).map(resolveSpot)))
+    }
+    return result
+  }
   async function persist () {
     state.revision++
     state.updatedAt = Date.now()
@@ -214,6 +247,15 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
       const now = Date.now()
       const p = programming.ensureProgramming(state)
       let changed = await crossBoundaries(now)
+      if (vod && Array.isArray(state.spots) && state.spots.length &&
+          !timeline.currentVod(state, now)?.spot) {
+        // Recheck availability/privacy without interrupting an airing spot.
+        const checked = await validateAvailableSpots(state.spots)
+        if (JSON.stringify(checked) !== JSON.stringify(state.spots)) {
+          programming.setSpots(state, checked, now)
+          changed = true
+        }
+      }
       // Do not infer 'live' from isLive alone: state 4 is WAITING_FOR_LIVE, 5 is LIVE_ENDED.
       const activeLives = (await listSources(true)).filter(timeline.isActiveLive)
       // Refresh VODs BEFORE concluding a live: catch publications that arrived
@@ -339,6 +381,10 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
       res.json({ items: items.filter(timeline.isPlayableVod).slice(0, 100) })
     } catch (err) { problem(res, err) }
   })
+  router.put('/admin/spots', (req, res) => adminMutation(req, res, async body => {
+    const items = await validateSpotVideos(body.uuids)
+    programming.setSpots(state, items, Date.now())
+  }))
   router.post('/admin/playlists', (req, res) => adminMutation(req, res, async body => {
     const items = await validateVideos(body.uuids)
     programming.addPlaylist(state, { id: randomUUID(), name: body.name, items })
@@ -415,7 +461,9 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
     await readConfig()
     // Force new queue on configuration changes, but don't play past videos in old channel.
     const p = programming.ensureProgramming(state)
+    const spots = state.spots || []
     state = timeline.createState()
+    state.spots = spots
     state.programming = p
     p.active = { type: 'auto', name: 'Αυτόματο πρόγραμμα' }
     p.endsAt = null
