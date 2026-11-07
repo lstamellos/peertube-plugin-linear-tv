@@ -297,7 +297,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
         const li = document.createElement('li')
         const when = document.createElement('time')
         text(when, 'Μετά το live')
-        const { content } = createEPGEntry(video, video.name)
+        const { content } = createEPGEntry(video, video.interstitial ? 'Σποτ · ' + video.name : video.name)
         li.append(when, content)
         listEl.appendChild(li)
       }
@@ -341,9 +341,10 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       text(titleEl, payload.title || 'Linear TV')
       if (!embedded) document.title = (payload.title || 'Linear TV') + ' — PeerTube'
       badge.hidden = payload.mode !== 'live'
-      text(currentEl, payload.current?.name || 'Χωρίς πρόγραμμα')
+      text(currentEl, (payload.interstitial ? 'Σποτ · ' : '') + (payload.current?.name || 'Χωρίς πρόγραμμα'))
       text(currentMetaEl, payload.mode === 'live' ? 'Ζωντανή μετάδοση'
-        : payload.mode === 'vod' ? `Έως ${clock(payload.endsAt)} · ${payload.current.channelName}` : '')
+        : payload.interstitial ? `Ενδιάμεσο σποτ · έως ${clock(payload.endsAt)}`
+          : payload.mode === 'vod' ? `Έως ${clock(payload.endsAt)} · ${payload.current.channelName}` : '')
       setVideo(payload)
       renderSchedule(payload)
       updateChat(payload.chatAnchor)
