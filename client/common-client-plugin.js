@@ -528,8 +528,9 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       if (!active || !rootEl.isConnected) return
       const manualSync = syncRequested
       syncRequested = false
-      const reloadLive = manualSync && payload.mode === 'live' &&
-        payload.current?.uuid === activeUUID && isLive
+      const sameMedia = payload.current?.uuid === activeUUID &&
+        (payload.mode === 'live') === isLive
+      const reloadLive = manualSync && payload.mode === 'live' && sameMedia
       lastPayload = payload
       lastReceived = performance.now()
       text(titleEl, payload.title || 'Linear TV')
@@ -545,7 +546,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       // stream edge. Routine polling never undoes the viewer's pause/seek.
       if (manualSync && payload.mode === 'vod') {
         if (player) await synchronizePlayer()
-        else if (payload.current && !reloadLive) setVideo(payload, true)
+        else if (payload.current && sameMedia) setVideo(payload, true)
       }
       scheduleBoundaryUpdate(payload)
       renderSchedule(payload)
