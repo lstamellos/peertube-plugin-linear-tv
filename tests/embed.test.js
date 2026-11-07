@@ -64,7 +64,7 @@ test('embed html escapes all route attributes', () => {
 
 test('plugin packaging serves reusable client module and embed stylesheet', () => {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-  assert.equal(pkg.version, '0.2.6')
+  assert.equal(pkg.version, '0.2.7')
   assert.equal(pkg.license, 'GPL-3.0-only')
   assert.equal(pkg.staticDirs['tv-assets'], 'client')
   assert.match(embedClient, /import\s*\{\s*mountLinearTV\s*\}\s*from\s*'\.\/common-client-plugin\.js'/)
