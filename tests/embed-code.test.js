@@ -72,7 +72,7 @@ test('Embed toggle shows and hides the instance-specific snippet without touchin
     mountLinearTV(root, {
       routerBase: '/plugins/linear-tv/0.2.8/router',
       staticBase: '/plugins/linear-tv/0.2.8/static',
-      embedded: true
+      embedded: false
     })
     assert.match(root.innerHTML, /id="lt-embed-toggle"[^>]*>Embed<\/button>/)
     assert.match(root.innerHTML, /id="lt-embed-code"/)
@@ -104,6 +104,18 @@ test('Embed toggle shows and hides the instance-specific snippet without touchin
     assert.equal(nodes.get('#lt-embed-panel').hidden, true)
     assert.equal(nodes.get('#lt-embed-toggle').attrs['aria-expanded'], 'false')
     assert.equal(playerReplacements, 0)
+
+    // The same UI is mounted as an iframe and inside homepage markup.
+    // Its Embed button must not be rendered in embedded mode.
+    mountLinearTV(root, {
+      routerBase: '/plugins/linear-tv/0.2.9/router',
+      staticBase: '/plugins/linear-tv/0.2.9/static',
+      embedded: true
+    })
+    assert.doesNotMatch(root.innerHTML, /id="lt-embed-toggle"/)
+    assert.match(root.innerHTML, /id="lt-sound"/)
+    assert.match(root.innerHTML, /id="lt-chat-toggle"/)
+    assert.match(root.innerHTML, /class="lt-epg"/)
   } finally {
     if (priorWindow === undefined) delete globalThis.window
     else globalThis.window = priorWindow
