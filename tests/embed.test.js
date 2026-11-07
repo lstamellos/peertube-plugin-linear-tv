@@ -43,7 +43,7 @@ test('a standalone embed route reuses version-aware plugin assets and restricts 
     assert.equal(headers['Cache-Control'], 'no-store, max-age=0')
     assert.equal(headers['Content-Security-Policy'], FRAME_ANCESTORS)
     assert.match(res.body, /id="lt-embed-root"/)
-    assert.match(res.body, /data-router-base="\/plugins\/linear-tv\/0\.2\.6\/router"/)
+    assert.match(res.body, /data-router-base="\/plugins\/linear-tv\/0\.2\.7\/router"/)
     assert.match(res.body, /static\/tv-assets\/linear-tv\.css/)
     assert.match(res.body, /static\/tv-assets\/embed\.css/)
     assert.match(res.body, /static\/tv-assets\/embed-client\.js/)
