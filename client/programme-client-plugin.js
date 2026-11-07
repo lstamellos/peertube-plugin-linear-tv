@@ -18,7 +18,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
           <section class="lt-admin-card"><h2>${uiText("Τώρα παίζει", "Now playing")}</h2><div id="lt-admin-current"></div>
             <div id="lt-admin-active"></div></section>
           <section class="lt-admin-card"><h2>${uiText("Τρέχουσα playlist — πλήρης επεξεργασία", "Current playlist — full editor")}</h2>
-            <p>${uiText("Move, remove or add videos. Previously played videos or videos before the current one only change in the next cycle. Changes after the current video apply immediately without interrupting playback. The on-air video stays until it finishes.", "Reorder, remove or add videos. Already played items, or items before the current one, change only in the <strong>next cycle</strong>. Upcoming items change immediately without seeking or interrupting playback; the playing video remains until it ends.")}</p>
+            <p>${uiText("Μετακίνησε, αφαίρεσε ή πρόσθεσε βίντεο. Όσα έχουν ήδη παίξει, ή βρίσκονται πριν από το τρέχον, αλλάζουν μόνο στον <strong>επόμενο κύκλο</strong>. Οι αλλαγές στα επόμενα ισχύουν αμέσως, χωρίς διακοπή ή μετακίνηση της αναπαραγωγής. Το βίντεο που παίζει παραμένει μέχρι να τελειώσει.", "Reorder, remove or add videos. Already played items, or items before the current one, change only in the <strong>next cycle</strong>. Upcoming items change immediately without seeking or interrupting playback; the playing video remains until it ends.")}</p>
             <ol id="lt-admin-queue" class="lt-admin-queue"></ol>
             <label for="lt-admin-current-search">${uiText("Προσθήκη δημόσιου βίντεο στην τρέχουσα playlist", "Add a public video to the current playlist")}</label>
             <input id="lt-admin-current-search" placeholder="${uiText("Αναζήτηση τίτλου βίντεο", "Search video titles")}">
@@ -26,7 +26,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
             <div id="lt-admin-current-results" class="lt-admin-library"></div>
             <button type="button" id="lt-admin-order-save" disabled>${uiText("Αποθήκευση αλλαγών playlist", "Save playlist changes")}</button></section>
           <section class="lt-admin-card"><h2>${uiText("Ενδιάμεσα σποτ", "Interstitial spots")}</h2>
-            <p>${uiText("Spots play in order between programme videos and on return from live. Public and unlisted PeerTube videos are supported. Spots are not part of the normal playlists.", "Spots play in order between programme videos. After live, only the next spot plays before the interrupted video resumes. Public and unlisted PeerTube videos are supported. Spots are not part of programme playlists.")}</p>
+            <p>${uiText("Τα σποτ παίζουν με τη σειρά τους μετά από κάθε βίντεο, πριν από το επόμενο, καθώς και αμέσως μετά το τέλος του live. Δέχονται δημόσια ή μη καταχωρισμένα (unlisted) PeerTube βίντεο. Δεν αποτελούν μέρος των κανονικών playlists.", "Spots play in order between programme videos. After live, only the next spot plays before the interrupted video resumes. Public and unlisted PeerTube videos are supported. Spots are not part of programme playlists.")}</p>
             <ol id="lt-admin-spots" class="lt-admin-queue"></ol>
             <label for="lt-admin-spot-input">${uiText("UUID ή σύνδεσμος PeerTube σποτ", "Spot UUID or PeerTube URL")}</label>
             <input id="lt-admin-spot-input" placeholder="https://your-peertube.example/w/UUID">
@@ -235,7 +235,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
         for (const item of data.playlists) {
           const div = document.createElement('div')
           div.className = 'lt-admin-row'
-          div.appendChild(textNode('span', `${item.name} — ${item.items.length} βίντεο · ${duration(item.items)}′`))
+          div.appendChild(textNode('span', `${item.name} — ${item.items.length} ${uiText("βίντεο · ", "videos · ")}${duration(item.items)}′`))
           const actions = document.createElement('div')
           actions.className = 'lt-admin-actions'
           actions.append(button(uiText("Προσθήκη μετά την τρέχουσα", "Schedule after current"), () => mutate('/schedule', 'POST', { playlistId: item.id })),
