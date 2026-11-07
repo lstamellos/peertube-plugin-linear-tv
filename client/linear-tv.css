@@ -43,7 +43,7 @@
 
 #linear-tv-app .lt-player-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .6rem; }
 #linear-tv-app .lt-sync, #linear-tv-app .lt-sound, #linear-tv-app .lt-chat-toggle, #linear-tv-app .lt-embed-toggle, #linear-tv-app .lt-embed-controls button { padding: .45rem .85rem; cursor: pointer; border: 1px solid currentColor; border-radius: 4px; background: transparent; color: inherit; }
-#linear-tv-app .lt-sound[hidden], #linear-tv-app .lt-sync[hidden] { display: none; }
+#linear-tv-app .lt-sound[hidden], #linear-tv-app .lt-sync[hidden], #linear-tv-app .lt-embed-toggle[hidden] { display: none !important; }
 #linear-tv-app .lt-sync { font-weight: 700; }
 #linear-tv-app .lt-sync:disabled { opacity: .7; cursor: default; }
 #linear-tv-app .lt-player-actions button:focus-visible, #linear-tv-app .lt-embed-controls button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
