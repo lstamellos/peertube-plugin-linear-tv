@@ -78,6 +78,20 @@ test('plugin packaging serves reusable client module and embed stylesheet', () =
   assert.match(readFileSync(join(root, 'client/embed.css'), 'utf8'), /\.lt-epg ol\s*\{[^}]*max-height:/)
 })
 
+test('the complete upcoming EPG is hidden during live and restored on the next VOD status', async () => {
+  const { setProgrammeVisibility } = await loadClient()
+  const panel = { hidden: false }
+  assert.equal(setProgrammeVisibility(panel, 'vod'), true)
+  assert.equal(panel.hidden, false)
+  assert.equal(setProgrammeVisibility(panel, 'live'), false)
+  assert.equal(panel.hidden, true)
+  assert.equal(setProgrammeVisibility(panel, 'vod'), true)
+  assert.equal(panel.hidden, false)
+  assert.match(client, /listEl\.replaceChildren\(\)[\s\S]*?setProgrammeVisibility\(schedulePanel, payload\.mode\)/)
+  assert.match(readFileSync(join(root, 'client/linear-tv.css'), 'utf8'),
+    /\.lt-epg\[hidden\]\s*\{\s*display:\s*none\s*!important;/)
+})
+
 test('chat sizing inside WordPress iframe follows the player, not iframe viewport height', async () => {
   const { fitChatToPlayer } = await loadClient()
   const video = { getBoundingClientRect () { return { height: 320 } } }
