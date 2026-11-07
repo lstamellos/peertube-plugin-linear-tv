@@ -224,8 +224,41 @@ function isIntentionalSeekInput (event) {
   return false
 }
 
+// PeerTube client helpers expose the active user's role: 0 administrator,
+// 1 moderator, 2 regular user. Fail closed if the login state is unavailable.
+function isEmbedAdministrator (helpers) {
+  try {
+    return helpers?.isLoggedIn?.() === true && helpers?.getUser?.()?.role === 0
+  } catch { return false }
+}
+
+// The button is a convenience UI control, not authorization for the public
+// embedding endpoint. Closing the panel on logout prevents stale admin UI.
+function setEmbedAccess (rootEl, allowed) {
+  const toggle = rootEl?.querySelector?.('#lt-embed-toggle')
+  if (!toggle) return
+  toggle.hidden = !allowed
+  if (!allowed) {
+    const panel = rootEl.querySelector('#lt-embed-panel')
+    if (panel) panel.hidden = true
+    toggle.setAttribute('aria-expanded', 'false')
+  }
+}
+
 function register ({ registerClientRoute, registerHook, peertubeHelpers }) {
+  let mountedRoot = null
+  const refreshEmbedAccess = (allowed) => {
+    if (mountedRoot?.isConnected) setEmbedAccess(mountedRoot, allowed)
+  }
   if (typeof registerHook === 'function') {
+    registerHook({
+      target: 'action:auth-user.logged-out',
+      handler: () => refreshEmbedAccess(false)
+    })
+    registerHook({
+      target: 'action:auth-user.information-loaded',
+      handler: ({ user } = {}) => refreshEmbedAccess(user?.role === 0)
+    })
     registerHook({
       target: 'filter:left-menu.links.create.result',
       handler: async sections => {
@@ -243,16 +276,20 @@ function register ({ registerClientRoute, registerHook, peertubeHelpers }) {
   registerClientRoute({
     route: 'tv',
     title: 'Linear TV',
-    onMount: ({ rootEl }) => mountLinearTV(rootEl, {
-      routerBase: peertubeHelpers.getBaseRouterRoute(),
-      staticBase: peertubeHelpers.getBaseStaticRoute()
-    })
+    onMount: ({ rootEl }) => {
+      mountedRoot = rootEl
+      mountLinearTV(rootEl, {
+        routerBase: peertubeHelpers.getBaseRouterRoute(),
+        staticBase: peertubeHelpers.getBaseStaticRoute(),
+        showEmbed: isEmbedAdministrator(peertubeHelpers)
+      })
+    }
   })
 }
 
 // This same TV app is mounted by PeerTube's /p/tv route and by the standalone
 // cross-site embed page. Both use one status feed and identical video/chat logic.
-function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
+function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false, showEmbed = false }) {
   rootEl.innerHTML = `
     <section id="linear-tv-app" class="${embedded ? 'lt-embed' : ''}" aria-label="Television stream">
       <header class="lt-header"><h1 class="lt-title">${uiText("Συνεχής ροή", "Continuous channel")}</h1><span class="lt-badge" hidden>● LIVE</span></header>
@@ -263,7 +300,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
             <button type="button" class="lt-sync" id="lt-sync" disabled aria-live="polite">${uiText("↻ Συγχρονισμός με το πρόγραμμα", "↻ Sync to Programme")}</button>
             <button type="button" class="lt-sound" id="lt-sound">${uiText("Ενεργοποίηση ήχου", "Enable sound")}</button>
             <button type="button" class="lt-chat-toggle" id="lt-chat-toggle" aria-controls="lt-chat" aria-expanded="true">${uiText("Απόκρυψη συνομιλίας", "Hide chat")}</button>
-            ${embedded ? '' : `<button type="button" class="lt-embed-toggle" id="lt-embed-toggle" aria-controls="lt-embed-panel" aria-expanded="false">${uiText("Ενσωμάτωση", "Embed")}</button>`}
+            ${embedded ? '' : `<button type="button" class="lt-embed-toggle" id="lt-embed-toggle" aria-controls="lt-embed-panel" aria-expanded="false" ${showEmbed ? '' : 'hidden'}>${uiText("Ενσωμάτωση", "Embed")}</button>`}
           </div>
           <section id="lt-embed-panel" class="lt-embed-panel" hidden>
             <label for="lt-embed-code">${uiText("Κώδικας ενσωμάτωσης", "Embed code")}</label>
@@ -472,6 +509,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   // The generator uses the current PeerTube origin even inside an iframe.
   // Displaying or copying the snippet never changes the playing media.
   embedToggle?.addEventListener?.('click', () => {
+    if (embedToggle.hidden) return
     embedPanel.hidden = !embedPanel.hidden
     embedToggle.setAttribute('aria-expanded', String(!embedPanel.hidden))
     if (!embedPanel.hidden) {
@@ -617,4 +655,4 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     void update()
   }, 5000)
 }
-export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, isProgrammeSynced, isIntentionalSeekInput, uiText, generateEmbedCode, generateHomepageTag }
+export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, isProgrammeSynced, isIntentionalSeekInput, isEmbedAdministrator, setEmbedAccess, uiText, generateEmbedCode, generateHomepageTag }
