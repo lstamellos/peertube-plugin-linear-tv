@@ -271,7 +271,7 @@ function mountProgramme (rootEl, peertubeHelpers) {
       function render () {
         if (!data) return
         els.current.textContent = (data.interstitial ? uiText("Σποτ · ", "Spot · ") : '') + (data.current?.name || uiText("Χωρίς πρόγραμμα", "No programme"))
-        els.active.textContent = `${data.active.name} · ${data.live ? 'LIVE' : data.interstitial ? 'SPOT' : 'VOD'}${data.currentEndsAt === null ? '' : uiText(" · ολοκλήρωση: ", " · ends: ") + stamp(data.currentEndsAt)}`
+        els.active.textContent = `${data.active.type === 'auto' ? uiText('Αυτόματο πρόγραμμα', 'Automatic programme') : data.active.name} · ${data.live ? 'LIVE' : data.interstitial ? 'SPOT' : 'VOD'}${data.currentEndsAt === null ? '' : uiText(" · ολοκλήρωση: ", " · ends: ") + stamp(data.currentEndsAt)}`
         if (!isDirty) {
           const items = data.cycle?.items || data.upcoming
           cycleOrder = items.map(x => x.uuid)
