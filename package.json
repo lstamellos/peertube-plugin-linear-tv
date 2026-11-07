@@ -48,6 +48,7 @@
     "lib",
     "client",
     "README.md",
+    "docs",
     "LICENSE",
     "tests",
     "languages"
