@@ -1,5 +1,18 @@
 # Embedding Linear TV on another website
 
+## Embed inside the PeerTube instance homepage
+
+The PeerTube custom homepage editor accepts built-in custom tags, not arbitrary plugin-defined element names. Paste this sanitizer-safe tag into the instance's homepage markup:
+
+```html
+<peertube-container data-linear-tv="true"></peertube-container>
+```
+
+When the homepage is displayed, the Linear TV client plugin recognizes the `data-linear-tv` marker and replaces the container contents with the responsive, same-origin Linear TV iframe. It includes the video, optional persistent chat and EPG; height adjusts automatically using validated `postMessage` events. It also survives PeerTube SPA navigation and plugin upgrades. No external embed origins or custom scripts are needed.
+
+Get the exact snippet using **Watch → Embed → PeerTube homepage tag → Copy tag**. This works on the plugin's PeerTube 8.2+ target without patching PeerTube core.
+
+
 The **Embed / Ενσωμάτωση** button beside the player controls on the Watch page (or the embedded TV page) generates a ready-to-paste iframe **and** optional automatic-height script. It derives the public PeerTube origin automatically and uses a stable embed URL that survives plugin version upgrades. Use **Copy code** to copy the complete snippet; without clipboard permission, select the code manually. If the receiving CMS removes scripts, the iframe still displays with a fixed height.
 
 The public standalone document is:

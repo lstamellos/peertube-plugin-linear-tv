@@ -47,6 +47,12 @@ function generateEmbedCode (origin, routerBase) {
   ].join('\n')
 }
 
+// A supported PeerTube custom markup element, recognized by the plugin's
+// homepage client script. Unknown tags are removed by PeerTube's sanitizer.
+function generateHomepageTag () {
+  return '<peertube-container data-linear-tv="true"></peertube-container>'
+}
+
 // Keep the embed intact when the viewer enables sound. PeerTube 8.3.x exposes
 // its Video.js instance to the same-origin embedding page as videojsPlayer.
 // The official embed API supports setVolume(), but not muted(false); changing
@@ -236,6 +242,13 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
               <button type="button" id="lt-embed-copy">${uiText("Αντιγραφή κώδικα", "Copy code")}</button>
               <span id="lt-embed-feedback" role="status" aria-live="polite"></span>
             </div>
+            <label for="lt-homepage-code">${uiText("Tag αρχικής σελίδας PeerTube", "PeerTube homepage tag")}</label>
+            <textarea id="lt-homepage-code" readonly rows="2" spellcheck="false"></textarea>
+            <div class="lt-embed-controls">
+              <button type="button" id="lt-homepage-copy">${uiText("Αντιγραφή tag", "Copy tag")}</button>
+              <span id="lt-homepage-feedback" role="status" aria-live="polite"></span>
+            </div>
+            <p>${uiText("Το tag χρησιμοποιείται στην προσαρμοσμένη αρχική σελίδα του ίδιου PeerTube instance και δεν απαιτεί ρύθμιση εξωτερικού domain.", "Use this tag in the custom homepage of the same PeerTube instance. No external origin setting is needed.")}</p>
             <p>${uiText("Για εξωτερική ενσωμάτωση, ο διαχειριστής του PeerTube πρέπει να προσθέσει το domain της ιστοσελίδας στα Allowed external embed origins. Ο κώδικας περιλαμβάνει αυτόματη προσαρμογή ύψους όπου επιτρέπεται JavaScript.", "To embed on an external site, the PeerTube administrator must add that site's origin under Allowed external embed origins. The code includes automatic height adjustment where JavaScript is permitted.")}</p>
           </section>
           <div class="lt-now"><span class="lt-eyebrow">${uiText("ΤΩΡΑ ΠΑΙΖΕΙ", "NOW PLAYING")}</span>
@@ -268,6 +281,9 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   const embedCode = el('#lt-embed-code')
   const embedCopy = el('#lt-embed-copy')
   const embedFeedback = el('#lt-embed-feedback')
+  const homepageCode = el('#lt-homepage-code')
+  const homepageCopy = el('#lt-homepage-copy')
+  const homepageFeedback = el('#lt-homepage-feedback')
   const layoutEl = el('.lt-layout')
   let activeUUID = null
   let soundEnabled = false
@@ -362,7 +378,9 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     embedToggle.setAttribute('aria-expanded', String(!embedPanel.hidden))
     if (!embedPanel.hidden) {
       embedCode.value = generateEmbedCode(window.location.origin, routerBase)
+      homepageCode.value = generateHomepageTag()
       embedFeedback.textContent = ''
+      homepageFeedback.textContent = ''
     }
   })
   embedCopy?.addEventListener?.('click', async () => {
@@ -375,6 +393,18 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       embedCode.focus()
       embedCode.select()
       embedFeedback.textContent = uiText('Επίλεξε τον κώδικα και αντέγραψέ τον.', 'Select the code and copy it.')
+    }
+  })
+  homepageCopy?.addEventListener?.('click', async () => {
+    if (!homepageCode.value) return
+    try {
+      if (!globalThis.navigator?.clipboard?.writeText) throw new Error('Clipboard API unavailable')
+      await globalThis.navigator.clipboard.writeText(homepageCode.value)
+      homepageFeedback.textContent = uiText('Αντιγράφηκε!', 'Copied!')
+    } catch {
+      homepageCode.focus()
+      homepageCode.select()
+      homepageFeedback.textContent = uiText('Επίλεξε το tag και αντέγραψέ το.', 'Select the tag and copy it.')
     }
   })
   const resizeChat = () => fitChatToPlayer(videoEl, chatPanel, window, embedded)
@@ -471,4 +501,4 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     void update()
   }, 5000)
 }
-export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, uiText, generateEmbedCode }
+export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, uiText, generateEmbedCode, generateHomepageTag }
