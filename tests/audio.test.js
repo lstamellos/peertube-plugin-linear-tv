@@ -113,6 +113,7 @@ test('Sound button click calls unmute in place; does not call setVideo or replac
     const button = { hidden: false, addEventListener (event, fn) { assert.equal(event, 'click'); click = fn } }
     const elements = new Map([
       ['#lt-video', videoEl], ['#lt-sound', button],
+      ['#lt-sync', { hidden: false, disabled: true, addEventListener () {} }],
       ['#lt-chat-toggle', { addEventListener () {}, setAttribute () {} }],
       ['#lt-chat', { hidden: false, style: {} }],
       ['.lt-layout', { classList: { toggle () {} } }]

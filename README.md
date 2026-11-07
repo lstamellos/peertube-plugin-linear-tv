@@ -2,7 +2,7 @@
 
 A shared, television-style player for a PeerTube instance. Linear TV schedules publicly available videos from an account or selected channels, switches to active livestreams, and shows the next programmes in an electronic programme guide (EPG). It also offers a configurable administrator programme panel, optional interstitial spots, persistent live chat and an embeddable player.
 
-**Version:** 0.2.10 · **PeerTube:** 8.2+ · **Node.js:** 22+ · **License:** GPL-3.0-only
+**Version:** 0.2.11 · **PeerTube:** 8.2+ · **Node.js:** 22+ · **License:** GPL-3.0-only
 
 ## Features
 
@@ -14,6 +14,7 @@ A shared, television-style player for a PeerTube instance. Linear TV schedules p
 - **Optional persistent chat:** integrate a single room from `peertube-plugin-livechat` by setting an anchor video UUID.
 - **Native homepage markup:** paste `<peertube-container data-linear-tv="true"></peertube-container>` into PeerTube's custom homepage editor. The plugin renders the existing responsive TV embed in place, with no extra JavaScript or external-origin configuration.
 - **One-click embed code:** a localized **Embed / Ενσωμάτωση** button beside the sound and chat controls shows copyable, instance-specific HTML with automatic height adjustment. The generated URL uses the stable, upgrade-safe plugin route.
+- **Automatic and manual programme synchronization:** By default, playback is checked/corrected every five seconds. **Only an intentional viewer seek** (timeline drag/click or seek keyboard shortcut) suspends those corrections; Pause/Play alone does not. **Sync to Programme / Συγχρονισμός με το πρόγραμμα** seeks to the current programme position and **reenables automatic synchronization**. When aligned, **Synced / Συγχρονισμένο** appears. Live broadcasts retain their distinct LIVE badge, and programme boundaries still advance automatically.
 - **Three viewer surfaces:** the PeerTube `/p/tv` page, the standalone iframe at `/plugins/linear-tv/router/embed`, and custom homepage markup. All share the same server-side schedule.
 - **Persistent state:** scheduled playlists, spots and play positions survive plugin/service restarts (within the supported single-process installation).
 
@@ -75,7 +76,7 @@ The embedded document permits only its own origin and configured external origin
 
 - One channel per PeerTube instance; no multi-instance coordination, separate encoder, HLS relay or transcoding. Playback remains PeerTube's native iframe player.
 - Source VODs must be public, published, playable and non-NSFW. Interstitials may additionally be **unlisted**; playing unlisted media in public TV exposes its UUID to viewers. Never use unlisted spots for confidential material.
-- Live detection uses the PeerTube API and hooks; fallback polling is about 15 seconds. Browsers may introduce buffering, autoplay, HLS latency or background-tab drift; synchronization is approximate, not frame-accurate.
+- Live detection uses the PeerTube API and hooks; fallback polling is about 15 seconds. Browsers may introduce buffering, autoplay, HLS latency or background-tab drift. **Synced** allows a few seconds of tolerance and is not frame-accurate. During actual livestreams, native live-edge detection is used when exposed by PeerTube.
 - The first player normally starts muted due to autoplay policies. The sound control enables audio without replacing the stream.
 - Chat requires a separately installed and configured `peertube-plugin-livechat`; authentication inside third-party iframes may be restricted by browser cookie policies.
 - Test upgrades and cross-site embeds on a staging installation before changing the production channel.
