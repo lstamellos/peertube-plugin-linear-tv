@@ -357,7 +357,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   })
   // The generator uses the current PeerTube origin even inside an iframe.
   // Displaying or copying the snippet never changes the playing media.
-  embedToggle.addEventListener('click', () => {
+  embedToggle?.addEventListener?.('click', () => {
     embedPanel.hidden = !embedPanel.hidden
     embedToggle.setAttribute('aria-expanded', String(!embedPanel.hidden))
     if (!embedPanel.hidden) {
@@ -365,7 +365,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       embedFeedback.textContent = ''
     }
   })
-  embedCopy.addEventListener('click', async () => {
+  embedCopy?.addEventListener?.('click', async () => {
     if (!embedCode.value) return
     try {
       if (!globalThis.navigator?.clipboard?.writeText) throw new Error('Clipboard API unavailable')
