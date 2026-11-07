@@ -298,7 +298,8 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
         const li = document.createElement('li')
         const when = document.createElement('time')
         text(when, 'Μετά το live')
-        const { content } = createEPGEntry(video, video.interstitial ? 'Σποτ · ' + video.name : video.name)
+        const { content } = createEPGEntry(video, video.interstitial ? 'Σποτ · ' + video.name
+          : video.resumed ? 'Συνέχεια · ' + video.name : video.name)
         li.append(when, content)
         listEl.appendChild(li)
       }
@@ -310,7 +311,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       const when = document.createElement('time')
       when.dateTime = new Date(video.startsAt).toISOString()
       text(when, clock(video.startsAt))
-      const { content, label } = createEPGEntry(video, video.name)
+      const { content, label } = createEPGEntry(video, video.resumed ? 'Συνέχεια · ' + video.name : video.name)
       const duration = document.createElement('small')
       text(duration, ` · ${Math.ceil(video.duration / 60)}′`)
       label.appendChild(duration)
