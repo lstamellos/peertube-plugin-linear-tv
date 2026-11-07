@@ -33,7 +33,7 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
   registerSetting({ name: 'video-limit', label: 'Number of newest VODs (1–100)',
     type: 'input', default: '30' })
   registerSetting({ name: 'page-title', label: 'TV page title', type: 'input', default: 'Linear TV' })
-  registerSetting({ name: 'programme-panel', type: 'html', html: '<p><a href="/admin/settings/config/general?tv-programme=1" target="_blank" rel="noopener">Άνοιγμα panel προγραμματισμού TV ↗</a></p>' })
+  registerSetting({ name: 'programme-panel', type: 'html', html: '<p><a href="/admin/settings/config/general?tv-programme=1" target="_blank" rel="noopener">Open TV programme panel ↗</a></p>' })
   registerSetting({ name: 'embed-allowed-origins', label: 'Allowed external embed origins (optional)', type: 'input',
     descriptionHTML: 'Comma-separated HTTP(S) origins, e.g. https://www.example.org (no path). Empty allows same-origin embeds only. Up to 20 origins.', default: '' })
   registerSetting({ name: 'chat-anchor-uuid', label: 'Permanent chat anchor video UUID', type: 'input',
@@ -366,7 +366,8 @@ async function register ({ registerSetting, registerHook, getRouter, storageMana
     res.setHeader('Content-Security-Policy', [priorCsp, frameAncestors(config.embedOrigins)].filter(Boolean).join('; '))
     res.setHeader('Cache-Control', 'no-store, max-age=0')
     res.setHeader('X-Content-Type-Options', 'nosniff')
-    res.status(200).send(renderEmbedPage({ routerBase, staticBase, allowedOrigins: config.embedOrigins }))
+    const language = /^el(?:[-_,;]|$)/i.test(String(req.headers?.['accept-language'] || '')) ? 'el' : 'en'
+    res.status(200).send(renderEmbedPage({ routerBase, staticBase, allowedOrigins: config.embedOrigins, language }))
   })
   router.get('/status', (req, res) => {
     res.setHeader('Cache-Control', 'no-store, max-age=0')
