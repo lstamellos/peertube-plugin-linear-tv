@@ -86,7 +86,7 @@ test('PeerTube plugin hooks, EPG, live preemption, public VOD priority after res
     assert.equal(embedResponse.code, 200)
     assert.equal(embedHeaders['Content-Security-Policy'],
       "frame-ancestors 'self' https://www.example.org")
-    assert.match(embedResponse.body, /data-allowed-origins="\\[&quot;https:\/\/www\.example\.org&quot;\\]"/)
+    assert.match(embedResponse.body, /data-allowed-origins="\[&quot;https:\/\/www\.example\.org&quot;\]"/)
     settings['embed-allowed-origins'] = 'https://www.example.org/path'
     await changeSettings()
     routes['/embed']({ baseUrl: '/plugins/linear-tv/router' }, embedResponse)
