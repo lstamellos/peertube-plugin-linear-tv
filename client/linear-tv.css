@@ -49,6 +49,8 @@
 #linear-tv-app .lt-embed-panel[hidden] { display: none !important; }
 #linear-tv-app .lt-embed-panel label { display: block; margin-bottom: .4rem; font-weight: 600; }
 #linear-tv-app .lt-embed-panel textarea { display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 10rem; padding: .55rem; font: .8rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical; background: var(--input-bg, transparent); color: inherit; border: 1px solid var(--input-border-color, #7777); }
+#linear-tv-app #lt-homepage-code { min-height: 4rem; height: 4rem; }
+#linear-tv-app .lt-embed-panel label[for=lt-homepage-code] { margin-top: 1rem; }
 #linear-tv-app .lt-embed-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: .6rem; }
 #linear-tv-app .lt-embed-panel p { font-size: .88rem; opacity: .8; margin: .75rem 0 0; }
 
