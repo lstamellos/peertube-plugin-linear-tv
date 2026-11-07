@@ -128,6 +128,13 @@ function createEPGEntry (video, labelText) {
   return { content, label }
 }
 
+// Hide the complete EPG while live; it will be rebuilt from the fresh
+// server programme times once the livestream ends.
+function setProgrammeVisibility (panel, mode) {
+  panel.hidden = mode === 'live'
+  return !panel.hidden
+}
+
 function register ({ registerClientRoute, registerHook, peertubeHelpers }) {
   if (typeof registerHook === 'function') {
     registerHook({
@@ -183,6 +190,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   const currentEl = el('#lt-current')
   const currentMetaEl = el('#lt-current-meta')
   const videoEl = el('#lt-video')
+  const schedulePanel = el('.lt-epg')
   const listEl = el('#lt-queue')
   const scheduleMsgEl = el('#lt-schedule-message')
   const statusEl = el('#lt-status')
@@ -291,18 +299,11 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   window.addEventListener?.('resize', resizeChat)
   resizeChat()
   function renderSchedule (payload) {
+    // Never expose undated or stale programme entries during a live broadcast.
+    // On the first post-live status, the entire list is rebuilt with new times.
     listEl.replaceChildren()
-    if (payload.mode === 'live') {
-      text(scheduleMsgEl, 'Το πρόγραμμα συνεχίζεται μετά τη ζωντανή μετάδοση. Η ώρα έναρξης θα υπολογιστεί όταν ολοκληρωθεί.')
-      for (const video of payload.upcomingAfterLive || []) {
-        const li = document.createElement('li')
-        const when = document.createElement('time')
-        text(when, 'Μετά το live')
-        const { content } = createEPGEntry(video, video.interstitial ? 'Σποτ · ' + video.name
-          : video.resumed ? 'Συνέχεια · ' + video.name : video.name)
-        li.append(when, content)
-        listEl.appendChild(li)
-      }
+    if (!setProgrammeVisibility(schedulePanel, payload.mode)) {
+      text(scheduleMsgEl, '')
       return
     }
     text(scheduleMsgEl, payload.mode === 'empty' ? 'Δεν έχει οριστεί πρόγραμμα.' : '')
@@ -379,4 +380,4 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     void update()
   }, 5000)
 }
-export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry }
+export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility }
