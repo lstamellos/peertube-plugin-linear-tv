@@ -39,6 +39,7 @@ test('Embed toggle shows and hides the instance-specific snippet without touchin
   const priorFetch = globalThis.fetch
   const priorInterval = globalThis.setInterval
   const oldDocument = globalThis.document
+  const priorNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
   const events = new Map()
   const nodes = new Map()
   const makeNode = selector => ({
@@ -64,6 +65,10 @@ test('Embed toggle shows and hides the instance-specific snippet without touchin
     globalThis.document = { documentElement: { lang: 'en' }, head: { appendChild () {} } }
     globalThis.fetch = () => new Promise(() => {})
     globalThis.setInterval = () => 123
+    let copiedCode = null
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+      clipboard: { async writeText (value) { copiedCode = value } }
+    } })
     mountLinearTV(root, {
       routerBase: '/plugins/linear-tv/0.2.8/router',
       staticBase: '/plugins/linear-tv/0.2.8/static',
@@ -81,6 +86,11 @@ test('Embed toggle shows and hides the instance-specific snippet without touchin
     assert.equal(nodes.get('#lt-embed-toggle').attrs['aria-expanded'], 'true')
     assert.match(nodes.get('#lt-embed-code').value, /https:\/\/video\.example\.org\/plugins\/linear-tv\/router\/embed/)
     assert.equal(playerReplacements, 0)
+    const copy = events.get('#lt-embed-copy:click')
+    assert.equal(typeof copy, 'function')
+    await copy()
+    assert.equal(copiedCode, nodes.get('#lt-embed-code').value)
+    assert.equal(nodes.get('#lt-embed-feedback').textContent, 'Copied!')
     toggle()
     assert.equal(nodes.get('#lt-embed-panel').hidden, true)
     assert.equal(nodes.get('#lt-embed-toggle').attrs['aria-expanded'], 'false')
@@ -92,6 +102,8 @@ test('Embed toggle shows and hides the instance-specific snippet without touchin
     else globalThis.document = oldDocument
     globalThis.fetch = priorFetch
     globalThis.setInterval = priorInterval
+    if (priorNavigator) Object.defineProperty(globalThis, 'navigator', priorNavigator)
+    else delete globalThis.navigator
   }
 })
 
