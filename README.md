@@ -2,7 +2,7 @@
 
 A shared, television-style player for a PeerTube instance. Linear TV schedules publicly available videos from an account or selected channels, switches to active livestreams, and shows the next programmes in an electronic programme guide (EPG). It also offers a configurable administrator programme panel, optional interstitial spots, persistent live chat and an embeddable player.
 
-**Version:** 0.2.13 · **PeerTube:** 8.2+ · **Node.js:** 22+ · **License:** GPL-3.0-only
+**Version:** 0.2.14 · **PeerTube:** 8.2+ · **Node.js:** 22+ · **License:** GPL-3.0-only
 
 ## Features
 
@@ -11,7 +11,7 @@ A shared, television-style player for a PeerTube instance. Linear TV schedules p
 - **Optional interstitials:** configure 0–20 public or unlisted PeerTube VODs; normal breaks play spots in order between programme videos. On return from live, play only the next spot, not the full list. Spots are excluded from the EPG.
 - **EPG:** displays upcoming programme VODs with estimated start times and external links to their individual watch pages. The complete EPG hides during live, then returns with recalculated times.
 - **Programme management:** an administrator can edit the current/next cycle, create reusable playlists, schedule them, reorder them, and manage spots without restarting the playing VOD.
-- **Optional persistent chat:** integrate a single room from `peertube-plugin-livechat` by setting an anchor video UUID.
+- **Optional persistent chat:** integrate a single room from `peertube-plugin-livechat` by setting an anchor video UUID. The livechat iframe now matches the active PeerTube light/dark theme: initial colors use Live Chat's supported `_ac_*` parameters and in-place CSS variable updates track theme changes without disconnecting the chat. Same-origin homepage embeds inherit the parent PeerTube theme; standalone external embeds follow the viewer's light/dark system preference. For full chat theming, configure the Live Chat plugin to use its **PeerTube** ConverseJS theme.
 - **Native homepage markup:** paste `<peertube-container data-linear-tv="true"></peertube-container>` into PeerTube's custom homepage editor. The plugin renders the existing responsive TV embed in place, with no extra JavaScript or external-origin configuration.
 - **Administrator-only Embed button:** only logged-in PeerTube administrators (role 0) see the localized **Embed / Ενσωμάτωση** button on the native Watch page. It shows copyable, instance-specific HTML with automatic height adjustment. Moderators, regular users and visitors do not see the button; logging out closes the panel. This hides an administrative convenience, **not** the public embedded TV player, whose access and origin restrictions are unchanged.
   PeerTube 8.3 returns a structured `user.role` object, so administrator detection reads `user.role.id`.
