@@ -1,4 +1,6 @@
 /* Only the standalone Linear TV embed document uses these rules. */
+/* Standalone embeds follow the viewer's preferred light/dark mode. PeerTube's
+   homepage embed inherits the actual PeerTube theme for its chat colors. */
 html, body { margin: 0; padding: 0; }
 body.lt-embed-document { background: #101820; color: #f3f5f7; font: 16px/1.45 system-ui, sans-serif; }
 body.lt-embed-document *, body.lt-embed-document *::before, body.lt-embed-document *::after { box-sizing: border-box; }
@@ -15,4 +17,9 @@ body.lt-embed-document #linear-tv-app .lt-player-actions button { font: inherit;
 body.lt-embed-document #linear-tv-app .lt-footer { margin: .3rem 0 0; }
 @media (max-width: 800px) {
   body.lt-embed-document #linear-tv-app .lt-chat { height: 320px; }
+}
+
+@media (prefers-color-scheme: light) {
+  body.lt-embed-document { background: #fff; color: #202124; }
+  body.lt-embed-document #linear-tv-app .lt-chat { border-color: #c3c9cd; }
 }

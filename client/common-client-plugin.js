@@ -1,5 +1,117 @@
 'use strict'
 
+// Live Chat's webchat iframe supports 12 _ac_* URL parameters and the
+// matching --peertube-* CSS properties on body.converse-fullscreen.
+// Preserve the iframe/XMPP session while keeping its colors in sync.
+const CHAT_THEME_PROPERTIES = {
+  mainForeground: '--peertube-main-foreground',
+  mainBackground: '--peertube-main-background',
+  greyForeground: '--peertube-grey-foreground',
+  greyBackground: '--peertube-grey-background',
+  menuForeground: '--peertube-menu-foreground',
+  menuBackground: '--peertube-menu-background',
+  inputForeground: '--peertube-input-foreground',
+  inputBackground: '--peertube-input-background',
+  buttonForeground: '--peertube-button-foreground',
+  buttonBackground: '--peertube-button-background',
+  link: '--peertube-link',
+  linkHover: '--peertube-link-hover'
+}
+
+function chatThemeSource (win, doc, embedded) {
+  // The homepage tag embeds Linear TV in a same-origin iframe. Read the
+  // PeerTube parent's *selected* theme, not the operating system preference.
+  if (embedded) {
+    try {
+      if (win.parent && win.parent !== win &&
+          win.parent.location.origin === win.location.origin &&
+          win.parent.document?.body) {
+        return { win: win.parent, doc: win.parent.document }
+      }
+    } catch { /* External parent: use this embed's own theme. */ }
+  }
+  return { win, doc }
+}
+
+function chatThemeColors (win, doc, embedded = false) {
+  try {
+    const source = chatThemeSource(win, doc, embedded)
+    if (!source.doc?.body || typeof source.win?.getComputedStyle !== 'function') return null
+    const body = source.win.getComputedStyle(source.doc.body)
+    const root = source.win.getComputedStyle(source.doc.documentElement)
+    const property = name => body.getPropertyValue(name).trim() || root.getPropertyValue(name).trim()
+    // Live Chat validates every _ac_* value as an actual CSS color. Avoid
+    // passing unresolved variables, transparent colors or CSS keywords.
+    const valid = value => {
+      const color = String(value || '').trim()
+      if (!color || /^(?:transparent|currentcolor|inherit|initial|unset|revert)$/i.test(color) ||
+          /(?:var|env|url|expression)\s*\(/i.test(color) || /[;{}<>]/.test(color)) return ''
+      if (typeof source.win.CSS?.supports === 'function' && !source.win.CSS.supports('color', color)) return ''
+      return color
+    }
+    const pick = (names, fallback) => {
+      for (const name of names) {
+        const found = valid(property(name))
+        if (found) return found
+      }
+      return valid(fallback) || '#808080'
+    }
+    const dark = property('--is-dark') === '1' ||
+      (!property('--is-dark') && source.win.matchMedia?.('(prefers-color-scheme: dark)')?.matches === true)
+    const mainForeground = pick(['--fg', '--mainForegroundColor'], body.color || root.color || (dark ? '#f3f5f7' : '#202124'))
+    const mainBackground = pick(['--bg', '--mainBackgroundColor'],
+      valid(body.backgroundColor) || valid(root.backgroundColor) || (dark ? '#101820' : '#ffffff'))
+    const greyForeground = pick(['--fg-300', '--greyForegroundColor'], dark ? '#bdc6cf' : '#59636c')
+    const greyBackground = pick(['--bg-secondary-300', '--greyBackgroundColor'], dark ? '#33404a' : '#e7eaee')
+    const menuBackground = pick(['--bg-secondary-400', '--menuBackgroundColor'], dark ? '#24313a' : '#f2f4f6')
+    const inputForeground = pick(['--input-fg', '--inputForegroundColor'], mainForeground)
+    return {
+      mainForeground,
+      mainBackground,
+      greyForeground,
+      greyBackground,
+      menuForeground: pick(['--menuForegroundColor', '--fg'], mainForeground),
+      menuBackground,
+      inputForeground,
+      inputBackground: pick(['--input-bg', '--inputBackgroundColor'], mainBackground),
+      buttonForeground: pick(['--on-primary'], dark ? '#101820' : '#ffffff'),
+      buttonBackground: pick(['--primary', '--mainColor'], dark ? '#f48a53' : '#c75025'),
+      link: pick(['--fg', '--mainForegroundColor'], mainForeground),
+      linkHover: pick(['--fg-400'], mainForeground)
+    }
+  } catch {
+    // During early iframe loading or a theme switch, retry on the next tick.
+    return null
+  }
+}
+
+function chatThemeURL (anchor, colors) {
+  const base = '/plugins/livechat/router/webchat/room/' + encodeURIComponent(anchor)
+  if (!colors) return base
+  const params = new URLSearchParams()
+  for (const key of Object.keys(CHAT_THEME_PROPERTIES)) {
+    params.set('_ac_' + key, colors[key])
+  }
+  return base + '?' + params.toString()
+}
+
+function applyChatTheme (iframe, colors, origin) {
+  if (!iframe?.isConnected || !colors) return false
+  try {
+    const frameWindow = iframe.contentWindow
+    if (!frameWindow || frameWindow.location.origin !== origin) return false
+    const body = frameWindow.document?.body
+    if (!body?.classList?.contains('converse-fullscreen')) return false
+    for (const [key, property] of Object.entries(CHAT_THEME_PROPERTIES)) {
+      body.style.setProperty(property, colors[key])
+    }
+    return true
+  } catch {
+    // A foreign or not-yet-loaded frame cannot be styled; never reload it.
+    return false
+  }
+}
+
 // Generate a paste-ready, responsive embed from the current PeerTube origin.
 // Drop the plugin's version component, if present, to keep copied URLs working
 // across plugin upgrades. The source must always be a local plugin route.
@@ -366,6 +478,8 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false, show
   let playerToken = 0
   let sdkPromise = null
   let chatAnchor = null
+  let activeChatFrame = null
+  let appliedChatTheme = ''
   let active = true
   let requestBusy = false
   let tickTimer = null
@@ -583,16 +697,37 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false, show
       listEl.appendChild(li)
     }
   }
+  function refreshChatTheme () {
+    if (!activeChatFrame?.isConnected) return
+    const colors = chatThemeColors(window, document, embedded)
+    if (!colors) return
+    const signature = JSON.stringify(colors)
+    if (signature === appliedChatTheme) return
+    if (applyChatTheme(activeChatFrame, colors, window.location.origin)) {
+      appliedChatTheme = signature
+    }
+  }
   function updateChat (anchor) {
     if (chatAnchor === anchor) return
     chatAnchor = anchor
+    activeChatFrame = null
+    appliedChatTheme = ''
     if (!anchor) return
+    const colors = chatThemeColors(window, document, embedded)
     const iframe = document.createElement('iframe')
     iframe.title = uiText("Συζήτηση της ροής", "Channel chat")
     iframe.loading = 'lazy'
     iframe.referrerPolicy = 'same-origin'
-    iframe.src = '/plugins/livechat/router/webchat/room/' + encodeURIComponent(anchor)
+    iframe.src = chatThemeURL(anchor, colors)
+    iframe.addEventListener('load', () => {
+      if (activeChatFrame === iframe) {
+        appliedChatTheme = ''
+        refreshChatTheme()
+      }
+    })
+    activeChatFrame = iframe
     chatBody.replaceChildren(iframe)
+    refreshChatTheme()
   }
   function scheduleBoundaryUpdate (payload) {
     clearTimeout(boundaryTimer)
@@ -638,6 +773,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false, show
       scheduleBoundaryUpdate(payload)
       renderSchedule(payload)
       updateChat(payload.chatAnchor)
+      refreshChatTheme()
       text(statusEl, payload.healthy ? '' : uiText("Προσωρινό πρόβλημα ενημέρωσης πηγών. Εμφανίζεται το τελευταίο διαθέσιμο πρόγραμμα.", "Source update temporarily unavailable. Showing the last known programme."))
       await refreshSyncControl()
     } catch {
@@ -658,7 +794,8 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false, show
       window.removeEventListener?.('resize', resizeChat)
       return
     }
+    refreshChatTheme()
     void update()
   }, 5000)
 }
-export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, isProgrammeSynced, isIntentionalSeekInput, isAdminUser, isEmbedAdministrator, setEmbedAccess, uiText, generateEmbedCode, generateHomepageTag }
+export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, isProgrammeSynced, isIntentionalSeekInput, isAdminUser, isEmbedAdministrator, setEmbedAccess, chatThemeSource, chatThemeColors, chatThemeURL, applyChatTheme, uiText, generateEmbedCode, generateHomepageTag }
