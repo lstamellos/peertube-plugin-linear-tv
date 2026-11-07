@@ -4,6 +4,13 @@
 // its Video.js instance to the same-origin embedding page as videojsPlayer.
 // The official embed API supports setVolume(), but not muted(false); changing
 // volume alone cannot unmute a player started with ?muted=1.
+// English is the default on non-Greek PeerTube pages; preserve the existing
+// Greek interface when the instance or standalone embed declares lang="el".
+function uiText (el, en) {
+  const language = typeof document === 'undefined' ? 'el' : (document.documentElement?.lang || 'el')
+  return /^el(?:[-_]|$)/i.test(language) ? el : en
+}
+
 function enableSoundInEmbed (videoEl, button) {
   const iframe = videoEl.querySelector('iframe')
   if (!iframe?.isConnected) return false
@@ -65,12 +72,12 @@ function createVideoWatchLink (video) {
   link.href = '/w/' + encodeURIComponent(video.uuid)
   link.target = '_blank'
   link.rel = 'noopener noreferrer'
-  link.title = 'Άνοιγμα βίντεο'
-  link.setAttribute('aria-label', 'Άνοιγμα βίντεο: ' + (video.name || ''))
+  link.title = uiText("Άνοιγμα βίντεο", "Open video")
+  link.setAttribute('aria-label', uiText("Άνοιγμα βίντεο: ", "Open video: ") + (video.name || ''))
   // Text and a filled visual treatment make the action apparent, not just
   // a small arrow at the end of a long programme title. Inline fallback also
   // handles browsers temporarily retaining the previous plugin stylesheet.
-  link.textContent = 'Άνοιγμα ↗'
+  link.textContent = uiText("Άνοιγμα ↗", "Open ↗")
   link.setAttribute('style', [
     'box-sizing:border-box', 'display:inline-flex', 'align-items:center', 'justify-content:center',
     'flex:0 0 auto', 'margin-left:auto', 'width:auto', 'height:auto', 'min-height:2rem',
@@ -107,7 +114,7 @@ function fitChatToPlayer (videoEl, chatPanel, browserWindow, embedded = false) {
 function setChatVisibility (chatPanel, layoutEl, toggle, visible) {
   chatPanel.hidden = !visible
   layoutEl.classList.toggle('lt-chat-hidden', !visible)
-  toggle.textContent = visible ? 'Απόκρυψη συνομιλίας' : 'Εμφάνιση συνομιλίας'
+  toggle.textContent = visible ? uiText("Απόκρυψη συνομιλίας", "Hide chat") : uiText("Εμφάνιση συνομιλίας", "Show chat")
   toggle.setAttribute('aria-expanded', String(visible))
 }
 
@@ -166,21 +173,21 @@ function register ({ registerClientRoute, registerHook, peertubeHelpers }) {
 function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   rootEl.innerHTML = `
     <section id="linear-tv-app" class="${embedded ? 'lt-embed' : ''}" aria-label="Television stream">
-      <header class="lt-header"><h1 class="lt-title">Συνεχής ροή</h1><span class="lt-badge" hidden>● LIVE</span></header>
+      <header class="lt-header"><h1 class="lt-title">${uiText("Συνεχής ροή", "Continuous channel")}</h1><span class="lt-badge" hidden>● LIVE</span></header>
       <div class="lt-layout">
         <main class="lt-main">
-          <div class="lt-video" id="lt-video"><div class="lt-placeholder">Φόρτωση προγράμματος…</div></div>
+          <div class="lt-video" id="lt-video"><div class="lt-placeholder">${uiText("Φόρτωση προγράμματος…", "Loading programme…")}</div></div>
           <div class="lt-player-actions">
-            <button type="button" class="lt-sound" id="lt-sound">Ενεργοποίηση ήχου</button>
-            <button type="button" class="lt-chat-toggle" id="lt-chat-toggle" aria-controls="lt-chat" aria-expanded="true">Απόκρυψη συνομιλίας</button>
+            <button type="button" class="lt-sound" id="lt-sound">${uiText("Ενεργοποίηση ήχου", "Enable sound")}</button>
+            <button type="button" class="lt-chat-toggle" id="lt-chat-toggle" aria-controls="lt-chat" aria-expanded="true">${uiText("Απόκρυψη συνομιλίας", "Hide chat")}</button>
           </div>
-          <div class="lt-now"><span class="lt-eyebrow">ΤΩΡΑ ΠΑΙΖΕΙ</span>
+          <div class="lt-now"><span class="lt-eyebrow">${uiText("ΤΩΡΑ ΠΑΙΖΕΙ", "NOW PLAYING")}</span>
             <h2 id="lt-current">—</h2><p id="lt-current-meta"></p></div>
-          <section class="lt-epg"><h2>${embedded ? 'Προσεχώς' : 'Ακολουθεί'}</h2><p id="lt-schedule-message"></p>
-            <ol id="lt-queue" aria-label="Πρόγραμμα"></ol></section>
+          <section class="lt-epg"><h2>${embedded ? uiText('Προσεχώς', 'Upcoming') : uiText('Ακολουθεί', 'Next')}</h2><p id="lt-schedule-message"></p>
+            <ol id="lt-queue" aria-label="${uiText("Πρόγραμμα", "Programme")}"></ol></section>
         </main>
-        <aside class="lt-chat" id="lt-chat"><h2>Ζωντανή συζήτηση</h2>
-          <div id="lt-chat-body" class="lt-chat-body"><p>Το chat ενεργοποιείται από τις ρυθμίσεις του plugin.</p></div>
+        <aside class="lt-chat" id="lt-chat"><h2>${uiText("Ζωντανή συζήτηση", "Live chat")}</h2>
+          <div id="lt-chat-body" class="lt-chat-body"><p>${uiText("Το chat ενεργοποιείται από τις ρυθμίσεις του plugin.", "Chat is enabled in the plugin settings.")}</p></div>
         </aside>
       </div>
       <p class="lt-footer" id="lt-status" aria-live="polite"></p>
@@ -259,7 +266,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   function setVideo (payload, force = false) {
     if (!payload.current) {
       videoEl.replaceChildren(Object.assign(document.createElement('p'), {
-        className: 'lt-placeholder', textContent: 'Δεν υπάρχουν διαθέσιμα βίντεο.'
+        className: 'lt-placeholder', textContent: uiText("Δεν υπάρχουν διαθέσιμα βίντεο.", "No available videos.")
       }))
       activeUUID = null; player = null
       return
@@ -306,13 +313,13 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       text(scheduleMsgEl, '')
       return
     }
-    text(scheduleMsgEl, payload.mode === 'empty' ? 'Δεν έχει οριστεί πρόγραμμα.' : '')
+    text(scheduleMsgEl, payload.mode === 'empty' ? uiText("Δεν έχει οριστεί πρόγραμμα.", "No programme configured.") : '')
     for (const video of payload.upcoming || []) {
       const li = document.createElement('li')
       const when = document.createElement('time')
       when.dateTime = new Date(video.startsAt).toISOString()
       text(when, clock(video.startsAt))
-      const { content, label } = createEPGEntry(video, video.resumed ? 'Συνέχεια · ' + video.name : video.name)
+      const { content, label } = createEPGEntry(video, video.resumed ? uiText("Συνέχεια · ", "Resuming · ") + video.name : video.name)
       const duration = document.createElement('small')
       text(duration, ` · ${Math.ceil(video.duration / 60)}′`)
       label.appendChild(duration)
@@ -325,7 +332,7 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     chatAnchor = anchor
     if (!anchor) return
     const iframe = document.createElement('iframe')
-    iframe.title = 'Συζήτηση της ροής'
+    iframe.title = uiText("Συζήτηση της ροής", "Channel chat")
     iframe.loading = 'lazy'
     iframe.referrerPolicy = 'same-origin'
     iframe.src = '/plugins/livechat/router/webchat/room/' + encodeURIComponent(anchor)
@@ -353,18 +360,18 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
       text(titleEl, payload.title || 'Linear TV')
       if (!embedded) document.title = (payload.title || 'Linear TV') + ' — PeerTube'
       badge.hidden = payload.mode !== 'live'
-      text(currentEl, (payload.interstitial ? 'Σποτ · ' : '') + (payload.current?.name || 'Χωρίς πρόγραμμα'))
-      text(currentMetaEl, payload.mode === 'live' ? 'Ζωντανή μετάδοση'
-        : payload.interstitial ? `Ενδιάμεσο σποτ · έως ${clock(payload.endsAt)}`
-          : payload.mode === 'vod' ? `Έως ${clock(payload.endsAt)} · ${payload.current.channelName}` : '')
+      text(currentEl, (payload.interstitial ? uiText("Σποτ · ", "Spot · ") : '') + (payload.current?.name || uiText("Χωρίς πρόγραμμα", "No programme")))
+      text(currentMetaEl, payload.mode === 'live' ? uiText("Ζωντανή μετάδοση", "Live broadcast")
+        : payload.interstitial ? `${uiText('Ενδιάμεσο σποτ · έως ', 'Interstitial spot · until ')}${clock(payload.endsAt)}`
+          : payload.mode === 'vod' ? `${uiText('Έως ', 'Until ')}${clock(payload.endsAt)} · ${payload.current.channelName}` : '')
       setVideo(payload)
       scheduleBoundaryUpdate(payload)
       renderSchedule(payload)
       updateChat(payload.chatAnchor)
-      text(statusEl, payload.healthy ? '' : 'Προσωρινό πρόβλημα ενημέρωσης πηγών. Εμφανίζεται το τελευταίο διαθέσιμο πρόγραμμα.')
+      text(statusEl, payload.healthy ? '' : uiText("Προσωρινό πρόβλημα ενημέρωσης πηγών. Εμφανίζεται το τελευταίο διαθέσιμο πρόγραμμα.", "Source update temporarily unavailable. Showing the last known programme."))
       await synchronizePlayer()
     } catch {
-      text(statusEl, 'Δεν ήταν δυνατή η ανάκτηση του προγράμματος. Νέα προσπάθεια αυτόματα.')
+      text(statusEl, uiText("Δεν ήταν δυνατή η ανάκτηση του προγράμματος. Νέα προσπάθεια αυτόματα.", "Unable to retrieve the programme. Retrying automatically."))
     } finally { requestBusy = false }
   }
   void update()
