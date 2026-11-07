@@ -22,6 +22,7 @@ function themedDocument (vars = {}, background = '#ffffff', foreground = '#11111
     })
   }
   win.parent = win
+  win.document = doc
   return { doc, win }
 }
 
