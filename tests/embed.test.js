@@ -23,8 +23,8 @@ test('a standalone embed route reuses version-aware plugin assets and restricts 
       peertubeHelpers: {
         logger: { warn () {} },
         plugin: {
-          getBaseRouterRoute: () => '/plugins/linear-tv/0.2.7/router',
-          getBaseStaticRoute: () => '/plugins/linear-tv/0.2.7/static'
+          getBaseRouterRoute: () => '/plugins/linear-tv/0.2.8/router',
+          getBaseStaticRoute: () => '/plugins/linear-tv/0.2.8/static'
         }
       }
     })
@@ -36,21 +36,21 @@ test('a standalone embed route reuses version-aware plugin assets and restricts 
       status (code) { this.code = code; return this },
       send (body) { this.body = body; return this }
     }
-    routes['/embed']({ baseUrl: '/plugins/linear-tv/0.2.7/router' }, res)
+    routes['/embed']({ baseUrl: '/plugins/linear-tv/0.2.8/router' }, res)
     assert.equal(res.code, 200)
     assert.equal(headers['Content-Type'], 'text/html; charset=utf-8')
     assert.equal(headers['X-Frame-Options'], undefined)
     assert.equal(headers['Cache-Control'], 'no-store, max-age=0')
     assert.equal(headers['Content-Security-Policy'], FRAME_ANCESTORS)
     assert.match(res.body, /id="lt-embed-root"/)
-    assert.match(res.body, /data-router-base="\/plugins\/linear-tv\/0\.2\.7\/router"/)
+    assert.match(res.body, /data-router-base="\/plugins\/linear-tv\/0\.2\.8\/router"/)
     assert.match(res.body, /static\/tv-assets\/linear-tv\.css/)
     assert.match(res.body, /static\/tv-assets\/embed\.css/)
     assert.match(res.body, /static\/tv-assets\/embed-client\.js/)
     assert.doesNotMatch(res.body, /<script(?![^>]*src=)[^>]*>/i, 'no inline scripts on embed route')
     assert.doesNotMatch(res.body, /<iframe/, 'the TV app must own the single video iframe')
     headers['Content-Security-Policy'] = "default-src 'self'; frame-ancestors 'none'; script-src 'self'"
-    routes['/embed']({ baseUrl: '/plugins/linear-tv/0.2.7/router' }, res)
+    routes['/embed']({ baseUrl: '/plugins/linear-tv/0.2.8/router' }, res)
     assert.equal(headers['Content-Security-Policy'], "default-src 'self'; script-src 'self'; " + FRAME_ANCESTORS)
   } finally { await plugin.unregister() }
 })
@@ -86,7 +86,7 @@ test('embed parent allowlist accepts portable HTTP(S) origins and blocks unsafe 
 
 test('plugin packaging serves reusable client module and embed stylesheet', () => {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
-  assert.equal(pkg.version, '0.2.7')
+  assert.equal(pkg.version, '0.2.8')
   assert.equal(pkg.license, 'GPL-3.0-only')
   assert.equal(pkg.staticDirs['tv-assets'], 'client')
   assert.match(embedClient, /import\s*\{\s*mountLinearTV\s*\}\s*from\s*'\.\/common-client-plugin\.js'/)

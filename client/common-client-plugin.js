@@ -1,5 +1,52 @@
 'use strict'
 
+// Generate a paste-ready, responsive embed from the current PeerTube origin.
+// Drop the plugin's version component, if present, to keep copied URLs working
+// across plugin upgrades. The source must always be a local plugin route.
+function generateEmbedCode (origin, routerBase) {
+  const site = new URL(origin)
+  if (!['http:', 'https:'].includes(site.protocol)) throw new Error('HTTP(S) origin required')
+  if (typeof routerBase !== 'string' || !routerBase.startsWith('/') || routerBase.startsWith('//')) {
+    throw new Error('Expected a local PeerTube plugin route')
+  }
+  const stableRouter = routerBase.replace(/\/+$/, '')
+    .replace(/\/\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?(?=\/router$)/i, '')
+  const embedUrl = new URL(stableRouter + '/embed', site.origin)
+  const htmlUrl = embedUrl.href.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const safeOrigin = JSON.stringify(site.origin).replace(/</g, '\\u003c')
+
+  return [
+    '<iframe',
+    '  src="' + htmlUrl + '"',
+    '  title="Linear TV"',
+    '  scrolling="no"',
+    '  style="display:block;width:100%;height:850px;border:0;overflow:hidden"',
+    '  allow="autoplay; fullscreen; picture-in-picture"',
+    '  allowfullscreen>',
+    '</iframe>',
+    '<script>',
+    '(() => {',
+    '  const frame = document.currentScript.previousElementSibling',
+    '  const peerTubeOrigin = ' + safeOrigin,
+    "  if (!frame || frame.tagName !== 'IFRAME') return",
+    "  window.addEventListener('message', event => {",
+    "    if (event.origin !== peerTubeOrigin ||",
+    "        event.source !== frame.contentWindow ||",
+    "        event.data?.type !== 'linear-tv:resize') return",
+    '    const height = Number(event.data.height)',
+    '    if (Number.isFinite(height) && height >= 200 && height <= 4000) {',
+    "      frame.style.height = height + 'px'",
+    '    }',
+    '  })',
+    "  frame.addEventListener('load', () => {",
+    "    frame.contentWindow.postMessage({ type: 'linear-tv:request-size' }, peerTubeOrigin)",
+    '  })',
+    '})()',
+    '</script>'
+  ].join('\n')
+}
+
 // Keep the embed intact when the viewer enables sound. PeerTube 8.3.x exposes
 // its Video.js instance to the same-origin embedding page as videojsPlayer.
 // The official embed API supports setVolume(), but not muted(false); changing
@@ -180,7 +227,17 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
           <div class="lt-player-actions">
             <button type="button" class="lt-sound" id="lt-sound">${uiText("Ενεργοποίηση ήχου", "Enable sound")}</button>
             <button type="button" class="lt-chat-toggle" id="lt-chat-toggle" aria-controls="lt-chat" aria-expanded="true">${uiText("Απόκρυψη συνομιλίας", "Hide chat")}</button>
+            <button type="button" class="lt-embed-toggle" id="lt-embed-toggle" aria-controls="lt-embed-panel" aria-expanded="false">${uiText("Ενσωμάτωση", "Embed")}</button>
           </div>
+          <section id="lt-embed-panel" class="lt-embed-panel" hidden>
+            <label for="lt-embed-code">${uiText("Κώδικας ενσωμάτωσης", "Embed code")}</label>
+            <textarea id="lt-embed-code" readonly rows="11" spellcheck="false"></textarea>
+            <div class="lt-embed-controls">
+              <button type="button" id="lt-embed-copy">${uiText("Αντιγραφή κώδικα", "Copy code")}</button>
+              <span id="lt-embed-feedback" role="status" aria-live="polite"></span>
+            </div>
+            <p>${uiText("Για εξωτερική ενσωμάτωση, ο διαχειριστής του PeerTube πρέπει να προσθέσει το domain της ιστοσελίδας στα Allowed external embed origins. Ο κώδικας περιλαμβάνει αυτόματη προσαρμογή ύψους όπου επιτρέπεται JavaScript.", "To embed on an external site, the PeerTube administrator must add that site's origin under Allowed external embed origins. The code includes automatic height adjustment where JavaScript is permitted.")}</p>
+          </section>
           <div class="lt-now"><span class="lt-eyebrow">${uiText("ΤΩΡΑ ΠΑΙΖΕΙ", "NOW PLAYING")}</span>
             <h2 id="lt-current">—</h2><p id="lt-current-meta"></p></div>
           <section class="lt-epg"><h2>${embedded ? uiText('Προσεχώς', 'Upcoming') : uiText('Ακολουθεί', 'Next')}</h2><p id="lt-schedule-message"></p>
@@ -206,6 +263,11 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   const chatBody = el('#lt-chat-body')
   const chatPanel = el('#lt-chat')
   const chatToggle = el('#lt-chat-toggle')
+  const embedToggle = el('#lt-embed-toggle')
+  const embedPanel = el('#lt-embed-panel')
+  const embedCode = el('#lt-embed-code')
+  const embedCopy = el('#lt-embed-copy')
+  const embedFeedback = el('#lt-embed-feedback')
   const layoutEl = el('.lt-layout')
   let activeUUID = null
   let soundEnabled = false
@@ -292,6 +354,28 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
   soundBtn.addEventListener('click', () => {
     // Never call setVideo() here: replacing the iframe reloads the video.
     if (enableSoundInEmbed(videoEl, soundBtn)) soundEnabled = true
+  })
+  // The generator uses the current PeerTube origin even inside an iframe.
+  // Displaying or copying the snippet never changes the playing media.
+  embedToggle?.addEventListener?.('click', () => {
+    embedPanel.hidden = !embedPanel.hidden
+    embedToggle.setAttribute('aria-expanded', String(!embedPanel.hidden))
+    if (!embedPanel.hidden) {
+      embedCode.value = generateEmbedCode(window.location.origin, routerBase)
+      embedFeedback.textContent = ''
+    }
+  })
+  embedCopy?.addEventListener?.('click', async () => {
+    if (!embedCode.value) return
+    try {
+      if (!globalThis.navigator?.clipboard?.writeText) throw new Error('Clipboard API unavailable')
+      await globalThis.navigator.clipboard.writeText(embedCode.value)
+      embedFeedback.textContent = uiText('Αντιγράφηκε!', 'Copied!')
+    } catch {
+      embedCode.focus()
+      embedCode.select()
+      embedFeedback.textContent = uiText('Επίλεξε τον κώδικα και αντέγραψέ τον.', 'Select the code and copy it.')
+    }
   })
   const resizeChat = () => fitChatToPlayer(videoEl, chatPanel, window, embedded)
   chatToggle.addEventListener('click', () => {
@@ -387,4 +471,4 @@ function mountLinearTV (rootEl, { routerBase, staticBase, embedded = false }) {
     void update()
   }, 5000)
 }
-export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, uiText }
+export { register, mountLinearTV, enableSoundInEmbed, addWatchMenuLink, createVideoWatchLink, fitChatToPlayer, setChatVisibility, createEPGEntry, setProgrammeVisibility, uiText, generateEmbedCode }

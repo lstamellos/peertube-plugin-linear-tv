@@ -1,6 +1,6 @@
 {
   "name": "peertube-plugin-linear-tv",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Synchronized linear TV, EPG, live preemption and instance-settings scheduling panel",
   "license": "GPL-3.0-only",
   "author": "Linear TV contributors",
@@ -41,7 +41,7 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check main.js && node --check lib/schedule.js && node --check client/common-client-plugin.js && node --check lib/programming.js && node --check client/programme-client-plugin.js && node --check tests/spots.test.js && node --check tests/settings-tab.test.js && node --check tests/watch-menu-links.test.js && node --check tests/chat-layout.test.js && node --check client/embed-client.js && node --check lib/embed.js"
+    "check": "node --check main.js && node --check lib/schedule.js && node --check client/common-client-plugin.js && node --check lib/programming.js && node --check client/programme-client-plugin.js && node --check tests/spots.test.js && node --check tests/settings-tab.test.js && node --check tests/watch-menu-links.test.js && node --check tests/chat-layout.test.js && node --check client/embed-client.js && node --check lib/embed.js && node --check tests/embed-code.test.js"
   },
   "files": [
     "main.js",

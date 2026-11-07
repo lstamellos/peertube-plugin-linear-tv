@@ -1,5 +1,7 @@
 # Embedding Linear TV on another website
 
+The **Embed / Ενσωμάτωση** button beside the player controls on the Watch page (or the embedded TV page) generates a ready-to-paste iframe **and** optional automatic-height script. It derives the public PeerTube origin automatically and uses a stable embed URL that survives plugin version upgrades. Use **Copy code** to copy the complete snippet; without clipboard permission, select the code manually. If the receiving CMS removes scripts, the iframe still displays with a fixed height.
+
 The public standalone document is:
 
 ```

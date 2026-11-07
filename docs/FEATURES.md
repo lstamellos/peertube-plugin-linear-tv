@@ -17,7 +17,7 @@ Linear TV is a synchronized **web playback schedule**. It never re-encodes video
 | Updated uploads | Eligible public uploads discovered during live can follow the resumed programme |
 | Upcoming EPG | Programme items and estimated start times only; hidden during live |
 | Persistent room | Optional livechat from a fixed anchor video |
-| Embedding | Standalone public iframe with explicit parent-origin allowlist |
+| Embedding | One-click generated copyable HTML snippet, optional auto-resize and explicit parent-origin allowlist |
 | Persistence | Programme position, spots and editorial settings stored via PeerTube |
 
 ## Scheduling details
