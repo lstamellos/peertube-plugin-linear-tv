@@ -11,7 +11,7 @@ In PeerTube **Administration → Plugins → Linear TV → Settings**, choose th
 - **Permanent chat anchor video UUID (optional):** set a public video with an enabled `peertube-plugin-livechat` room. Without it, video playback still works.
 - **Allowed external embed origins (optional):** parent websites allowed to frame the standalone TV page (see [Embedding](EMBEDDING.md)). Changing this setting does not intentionally restart the programme.
 
-The plugin uses the instance's own locally listening PeerTube API, not a fixed external server. The public viewer page is `/p/tv`, with a **Watch** sidebar link. The channel may initially be empty until the selected sources have eligible videos and the first refresh completes.
+The plugin uses the instance's own locally listening PeerTube API, not a fixed external server. The public viewer page is `/p/tv`, with a **Watch** sidebar link. The channel may initially be empty until the sources contain eligible videos and the first refresh completes. Changing the source account, channels or VOD limit starts a new automatic cycle; changing the title, chat anchor or allowed embed origins does not intentionally reset playback.
 
 ## TV programme administrator panel
 
@@ -19,7 +19,7 @@ Open **PeerTube administration → General settings → TV programme**, or visit
 
 ### Current programme
 
-The current cycle editor shows all programme VODs. Reorder by dragging or using the up/down buttons, add from the configured sources, or remove items, then save. The on-air VOD cannot be removed or restarted by editing. Changes to upcoming items take effect after the current VOD; changes to already-played or pre-current entries apply to the next cycle. Manual edits persist instead of being discarded on each automatic refresh.
+The current cycle editor shows all programme VODs. Reorder by dragging or using the up/down buttons, add from the configured sources, or remove items, then save. **The currently playing VOD must remain in the cycle** and is not restarted by editing. Changes to upcoming items take effect after the current VOD; changes to already-played or pre-current entries apply to the next cycle. Manual edits persist across automatic source refreshes. **Editing the active playlist or current cycle is paused during live and while a spot is on air.**
 
 ### Saved and upcoming playlists
 
@@ -43,10 +43,20 @@ Visitors arriving at different times watch the programme item corresponding to t
 
 A live stream preempts the current video. During live, the complete upcoming guide (heading and list) is hidden. Once the live ends and the return spot, if configured, begins, the guide reappears with revised programme times. Playback is approximate because browsers and streaming pipelines add latency.
 
+### Pause, seek and programme synchronization
+
+The native PeerTube player retains **Pause/Play** and the video timeline. When automatic synchronization is enabled, Linear TV compares playback to the scheduled position about every five seconds. **Deliberately seeking** (using the timeline or supported seek keys) disables those automatic corrections for the current programme until the viewer clicks **Sync to Programme / Συγχρονισμός με το πρόγραμμα**. Pause/Play on its own does **not** disable automatic synchronization. The **Synced / Συγχρονισμένο** label allows a small timing tolerance; it is not frame-accurate. Live-edge behavior depends on PeerTube's native player.
+
+### Persistent chat and themes
+
+Set the **Permanent chat anchor video UUID** to one video that has a working room in `peertube-plugin-livechat`. The conversation stays in that room when the TV changes videos; it is **not** the chat room of whichever video is on air. The **Hide chat / Show chat** button hides the existing iframe rather than destroying it.
+
+For theme matching, set the Live Chat plugin's **ConverseJS theme** to **PeerTube** and enable its **Automatic color detection** setting. Linear TV sends PeerTube colors to the chat on initial load and updates chat colors when the theme changes, without reloading its iframe. A same-origin PeerTube homepage embed follows the parent's selected theme; an external embed follows the viewer's system light/dark preference. See [Embedding](EMBEDDING.md).
+
 ## Operational notes
 
-The source API is refreshed periodically (about every 5 minutes for VODs, 15 seconds for live checks), with local video/live hooks where available. If the API is temporarily unavailable, the plugin retains the last known state and reports degraded health instead of incorrectly ending a live.
+The source API is refreshed periodically (about every 5 minutes for VODs, 15 seconds for live checks), with local video/live hooks where available. Programme boundaries are checked more frequently. If the API is temporarily unavailable, the plugin retains the last known state and reports degraded health instead of incorrectly ending a live.
 
 State uses PeerTube plugin storage, not a separate database. The design assumes a single PeerTube application process: multiple independent application instances need a shared scheduler and are not currently supported.
 
-`GET /plugins/linear-tv/router/status` returns the public current programme, upcoming guide, current mode and health information, without admin operations. Administrator endpoints under `/plugins/linear-tv/router/admin/*` enforce the administrator role and revision checks.
+`GET /plugins/linear-tv/router/status` returns the public current programme, upcoming guide, current mode and health information, without admin operations. Administrator endpoints under `/plugins/linear-tv/router/admin/*` enforce the administrator role and revision checks. The **Embed** button on the native Watch page is visible only to administrators, but public viewing and embedding still follow their own access and origin rules. For deployment checks and troubleshooting see [Operations](OPERATIONS.md).
