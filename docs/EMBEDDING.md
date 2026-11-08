@@ -13,7 +13,7 @@ When the homepage is displayed, the Linear TV client plugin recognizes the `data
 Get the exact snippet using **Watch → Embed → PeerTube homepage tag → Copy tag**. This works on the plugin's PeerTube 8.2+ target without patching PeerTube core.
 
 
-The **Embed / Ενσωμάτωση** button beside the player controls on the Watch page (or the embedded TV page) generates a ready-to-paste iframe **and** optional automatic-height script. It derives the public PeerTube origin automatically and uses a stable embed URL that survives plugin version upgrades. Use **Copy code** to copy the complete snippet; without clipboard permission, select the code manually. If the receiving CMS removes scripts, the iframe still displays with a fixed height.
+The **Embed / Ενσωμάτωση** button appears **only for logged-in PeerTube administrators on the native Watch page** (`/p/tv`); it does **not** appear to visitors, regular users, moderators or inside embedded TV pages. It generates a ready-to-paste iframe **and** optional automatic-height script. The embed itself remains publicly viewable, subject to the instance's configured framing restrictions. It derives the public PeerTube origin automatically and uses a stable embed URL that survives plugin version upgrades. Use **Copy code** to copy the complete snippet; without clipboard permission, select the code manually. If the receiving CMS removes scripts, the iframe still displays with a fixed height.
 
 The public standalone document is:
 
@@ -79,3 +79,15 @@ Place this script on the **parent website**, changing `peerTubeOrigin` to the ex
 ```
 
 The iframe uses strictly targeted `postMessage` origins, not `*`, and never rebuilds playback to resize. For a CMS that strips scripts from content blocks, install the listener in a theme/script module. Browser policies against third-party cookies may affect authenticated chat use inside cross-site embeds.
+
+## Live chat and light/dark themes
+
+The optional fixed chat room requires `peertube-plugin-livechat` and a configured **Permanent chat anchor video UUID**. The same chat room stays open across video and live transitions.
+
+For consistent light/dark colors, configure the Live Chat plugin's **ConverseJS theme** as **PeerTube** and its **Automatic color detection** setting as enabled. Linear TV passes Live Chat's supported `_ac_*` color values when creating the chat iframe and, on theme changes, updates its CSS variables **without replacing the iframe or reconnecting to the chat** (checked on the normal five-second programme timer).
+
+- **Native Watch page:** chat follows the selected PeerTube theme.
+- **PeerTube homepage tag:** its same-origin TV iframe inherits the homepage's selected theme for the chat.
+- **External iframe:** standalone TV and its chat follow the visitor's operating-system light/dark preference, **not necessarily the external site's custom theme**.
+
+These colors only apply to Live Chat's PeerTube ConverseJS theme. The chat iframe is hosted by the same PeerTube instance as Linear TV; this does **not** grant cross-origin access to the embedding website.
