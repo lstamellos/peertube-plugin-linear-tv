@@ -1,86 +1,40 @@
 # PeerTube Linear TV
 
-A shared, television-style player for a PeerTube instance. Linear TV schedules publicly available videos from an account or selected channels, switches to active livestreams, and shows the next programmes in an electronic programme guide (EPG). It also offers a configurable administrator programme panel, optional interstitial spots, persistent live chat and an embeddable player.
+A synchronized, television-style programme for one PeerTube instance. Viewers share the same schedule while their browsers play the original PeerTube videos at the corresponding position. Linear TV is **not** a separate 24/7 stream encoder or relay.
 
-**Version:** 0.2.14 · **PeerTube:** 8.2+ · **Node.js:** 22+ · **License:** GPL-3.0-only
+**Requirements:** PeerTube 8.2+, Node.js 22+ · **License:** GPL-3.0-only · **Current version:** [Releases](https://github.com/lstamellos/peertube-plugin-linear-tv/releases)
 
-## Features
+## What it does
 
-- **Shared continuous schedule:** viewers see the same programme and a calculated playback offset. The channel loops through a source-derived queue or scheduled editorial playlists.
-- **Live preemption and exact resume:** an active live interrupts the programme. After live ends, one configured spot plays (if any), then the interrupted VOD resumes at its saved position. Publications discovered during live follow the resumed programme.
-- **Optional interstitials:** configure 0–20 public or unlisted PeerTube VODs; normal breaks play spots in order between programme videos. On return from live, play only the next spot, not the full list. Spots are excluded from the EPG.
-- **EPG:** displays upcoming programme VODs with estimated start times and external links to their individual watch pages. The complete EPG hides during live, then returns with recalculated times.
-- **Programme management:** an administrator can edit the current/next cycle, create reusable playlists, schedule them, reorder them, and manage spots without restarting the playing VOD.
-- **Optional persistent chat:** integrate a single room from `peertube-plugin-livechat` by setting an anchor video UUID. The livechat iframe now matches the active PeerTube light/dark theme: initial colors use Live Chat's supported `_ac_*` parameters and in-place CSS variable updates track theme changes without disconnecting the chat. Same-origin homepage embeds inherit the parent PeerTube theme; standalone external embeds follow the viewer's light/dark system preference. For full chat theming, configure the Live Chat plugin to use its **PeerTube** ConverseJS theme.
-- **Native homepage markup:** paste `<peertube-container data-linear-tv="true"></peertube-container>` into PeerTube's custom homepage editor. The plugin renders the existing responsive TV embed in place, with no extra JavaScript or external-origin configuration.
-- **Administrator-only Embed button:** only logged-in PeerTube administrators (role 0) see the localized **Embed / Ενσωμάτωση** button on the native Watch page. It shows copyable, instance-specific HTML with automatic height adjustment. Moderators, regular users and visitors do not see the button; logging out closes the panel. This hides an administrative convenience, **not** the public embedded TV player, whose access and origin restrictions are unchanged.
-  PeerTube 8.3 returns a structured `user.role` object, so administrator detection reads `user.role.id`.
-- **Automatic and manual programme synchronization:** By default, playback is checked/corrected every five seconds. **Only an intentional viewer seek** (timeline drag/click or seek keyboard shortcut) suspends those corrections; Pause/Play alone does not. **Sync to Programme / Συγχρονισμός με το πρόγραμμα** seeks to the current programme position and **reenables automatic synchronization**. When aligned, **Synced / Συγχρονισμένο** appears. Live broadcasts retain their distinct LIVE badge, and programme boundaries still advance automatically.
-- **Three viewer surfaces:** the PeerTube `/p/tv` page, the standalone iframe at `/plugins/linear-tv/router/embed`, and custom homepage markup. All share the same server-side schedule.
-- **Persistent state:** scheduled playlists, spots and play positions survive plugin/service restarts (within the supported single-process installation).
+- **Continuous programme:** automatic rotation of eligible public VODs from an account or selected channels, with a shared **Now playing / Upcoming** guide.
+- **Editorial scheduling:** administrators can reorder the current cycle, save playlists, schedule them and configure optional interstitial spots.
+- **Live priority:** an active livestream interrupts the programme. When it ends, one configured spot (if any) plays, then the interrupted item resumes at its saved position.
+- **Viewer controls:** Pause/Play and seeking remain available. Intentional seeking suspends automatic programme alignment until **Sync to Programme** is clicked; Pause/Play alone does not.
+- **Optional live chat and embedding:** a persistent PeerTube Live Chat room, a native **Watch** page, a custom PeerTube homepage tag and a responsive external iframe. Chat follows light/dark themes without reloading.
 
-## Install or upgrade
+## Get started
 
-1. Install or upgrade this plugin through **PeerTube Administration → Plugins**, or use the standard PeerTube CLI from your PeerTube application directory, as its service account:
+1. Install **peertube-plugin-linear-tv** in **PeerTube Administration → Plugins**, or use the [CLI instructions](docs/OPERATIONS.md#install-and-upgrade).
+2. In **Administration → Plugins → Linear TV → Settings**, select a local **Account name** or **Channel handles** (channels take precedence). Save.
+3. Open **`/p/tv`** on your PeerTube instance. Administrators can edit the programme at **Administration → General settings → TV programme**.
+4. Optionally configure a **chat anchor video UUID** (requires [peertube-plugin-livechat](https://github.com/JohnXLivingston/peertube-plugin-livechat)) and **Allowed external embed origins**.
 
-   ```sh
-   # In the plugin source directory first:
-   npm install --omit=dev
-   # Then in the PeerTube application directory:
-   npm run plugin:install -- --plugin-path /absolute/path/to/peertube-plugin-linear-tv
-   ```
+The TV page is public; editing the programme and the **Embed / Ενσωμάτωση** button are available only to PeerTube administrators. The **Embed** button generates both the external iframe code and the PeerTube homepage tag.
 
-2. In **Administration → Plugins → Linear TV → Settings**, configure **Account name** or **Channel handles** (the channel list overrides the account). The account/channels must exist on this PeerTube instance and contain eligible videos.
-3. Optionally set the VOD limit (default 30), page title, chat anchor UUID, and external embed origins. Save.
-4. Open `https://your-peertube.example/p/tv` to view the shared channel. In the instance's **General settings**, use the **TV programme** tab to edit playlists, schedules and spots.
+## Documentation
 
-For detailed guidance see [Usage](docs/USAGE.md), [Features and scheduling rules](docs/FEATURES.md) and [Embedding](docs/EMBEDDING.md).
+- [Configuration, administration and viewer controls](docs/USAGE.md)
+- [Programming rules, live transitions and spots](docs/FEATURES.md)
+- [PeerTube homepage, external embedding and chat themes](docs/EMBEDDING.md)
+- [Installation, upgrades and troubleshooting](docs/OPERATIONS.md)
 
-## Configuration reference
+These pages are also organized as publication-ready [GitHub Wiki source pages](wiki/Home.md).
 
-| Setting | Purpose |
-| --- | --- |
-| Account name | All channels belonging to a local PeerTube account, when no channel handles are set |
-| Channel handles | Up to 20 comma-separated channels; overrides Account name |
-| Number of newest VODs | 1–100 (default 30) in the automatic source queue |
-| TV page title | Display heading of the viewer page |
-| Permanent chat anchor video UUID | Video whose livechat room remains open across programme changes |
-| Allowed external embed origins | 0–20 comma-separated **full origins** such as `https://www.example.org`. Empty = iframe embedding only from the PeerTube origin |
+## Important limits
 
-Spots and saved playlists are managed separately in the **TV programme** panel, not through the above plugin settings.
-
-## PeerTube homepage custom markup
-
-In **Administration → Settings → Configuration → Homepage** (custom homepage editor), paste:
-
-```html
-<peertube-container data-linear-tv="true"></peertube-container>
-```
-
-The plugin recognizes this built-in, sanitizer-allowed PeerTube tag by its `data-linear-tv` attribute and mounts the existing responsive TV iframe, with live chat and EPG. PeerTube does not expose a plugin API to register new custom tag names, so an arbitrary `<peertube-linear-tv>` element would be removed by PeerTube's markup sanitizer. The same snippet is available from **Watch → Embed → PeerTube homepage tag**. The Embed button is available on the native Watch page but hidden in standalone and homepage embedded views.
-
-## Embed example
-
-First add your website's exact origin (scheme, host and optional port; **no path**) to **Allowed external embed origins**. Then insert:
-
-```html
-<iframe src="https://your-peertube.example/plugins/linear-tv/router/embed"
-  title="Linear TV" loading="lazy"
-  style="width:100%;height:850px;border:0;overflow:hidden"
-  scrolling="no" allow="autoplay; fullscreen; picture-in-picture"
-  allowfullscreen></iframe>
-```
-
-The embedded document permits only its own origin and configured external origins through the `frame-ancestors` CSP directive. A resize listener, optional for fixed-height embeds, is documented in [Embedding](docs/EMBEDDING.md). Reverse-proxy `X-Frame-Options`/CSP headers must also allow the configured parent origin.
-
-## Limitations and safety
-
-- One channel per PeerTube instance; no multi-instance coordination, separate encoder, HLS relay or transcoding. Playback remains PeerTube's native iframe player.
-- Source VODs must be public, published, playable and non-NSFW. Interstitials may additionally be **unlisted**; playing unlisted media in public TV exposes its UUID to viewers. Never use unlisted spots for confidential material.
-- Live detection uses the PeerTube API and hooks; fallback polling is about 15 seconds. Browsers may introduce buffering, autoplay, HLS latency or background-tab drift. **Synced** allows a few seconds of tolerance and is not frame-accurate. During actual livestreams, native live-edge detection is used when exposed by PeerTube.
-- The first player normally starts muted due to autoplay policies. The sound control enables audio without replacing the stream.
-- Chat requires a separately installed and configured `peertube-plugin-livechat`; authentication inside third-party iframes may be restricted by browser cookie policies.
-- Test upgrades and cross-site embeds on a staging installation before changing the production channel.
+- **One shared TV channel, one PeerTube application process.** All playback uses native PeerTube video embeds; browser autoplay, buffering and latency can affect timing.
+- **Public videos only** in the automatic programme; configured spots may also be **unlisted**. An unlisted spot shown publicly exposes its video UUID.
+- **External embedding is allowlisted:** configure the exact parent origin and check reverse-proxy CSP / `X-Frame-Options` headers. Chat login in third-party iframes may be affected by browser cookie policies.
 
 ## Development
 
@@ -91,8 +45,6 @@ npm test
 npm pack
 ```
 
-The automated suite covers timelines, live transitions, spot rotation, playlist scheduling, client routing, iframe behavior and simulated PeerTube API calls. GitHub Actions runs syntax and regression tests on changes. Integration testing against the target PeerTube version is still required.
+Unit tests run in GitHub Actions; test upgrades and cross-site embeds on the target PeerTube version before production deployment.
 
-Refer to [PeerTube plugin documentation](https://docs.joinpeertube.org/contribute/plugins) and the [PeerTube Embed API](https://docs.joinpeertube.org/api/embed-player).
-
-**Project:** [repository](https://github.com/lstamellos/peertube-plugin-linear-tv) · [issues](https://github.com/lstamellos/peertube-plugin-linear-tv/issues)
+[Issues](https://github.com/lstamellos/peertube-plugin-linear-tv/issues) · [PeerTube plugin documentation](https://docs.joinpeertube.org/contribute/plugins) · [PeerTube Embed API](https://docs.joinpeertube.org/api/embed-player)
